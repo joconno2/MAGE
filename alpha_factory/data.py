@@ -135,14 +135,51 @@ def prepare_eval_data(
             sub.columns = [c.lower() for c in sub.columns]
 
             tickers.append(ticker)
+
+            o = sub["open"].values.astype(np.float64)
+            h = sub["high"].values.astype(np.float64)
+            l = sub["low"].values.astype(np.float64)
+            c = sub["close"].values.astype(np.float64)
+            v = sub["volume"].values.astype(np.float64)
+
+            # Derived features
+            ret = np.full_like(c, np.nan)
+            ret[1:] = (c[1:] - c[:-1]) / np.maximum(np.abs(c[:-1]), 1e-10)
+
+            log_ret = np.full_like(c, np.nan)
+            log_ret[1:] = np.log(np.maximum(c[1:], 1e-10) / np.maximum(c[:-1], 1e-10))
+
+            dollar_vol = c * v
+
+            # adv20: 20-day average volume
+            adv20 = np.full_like(v, np.nan)
+            if len(v) >= 20:
+                cs = np.cumsum(v)
+                adv20[19:] = (cs[19:] - np.concatenate([[0], cs[:-20]])) / 20
+            turnover_ratio = np.where(adv20 > 1e-10, v / adv20, 0.0)
+
+            intraday_range = (h - l) / np.maximum(np.abs(c), 1e-10)
+
+            gap = np.full_like(c, np.nan)
+            gap[1:] = o[1:] / np.maximum(np.abs(c[:-1]), 1e-10) - 1
+
+            upper_shadow = (h - np.maximum(o, c)) / np.maximum(np.abs(c), 1e-10)
+            lower_shadow = (np.minimum(o, c) - l) / np.maximum(np.abs(c), 1e-10)
+            body = (c - o) / np.maximum(np.abs(c), 1e-10)
+
             stock_data[ticker] = {
-                "open": sub["open"].values.astype(np.float64),
-                "high": sub["high"].values.astype(np.float64),
-                "low": sub["low"].values.astype(np.float64),
-                "close": sub["close"].values.astype(np.float64),
-                "volume": sub["volume"].values.astype(np.float64),
+                "open": o, "high": h, "low": l, "close": c, "volume": v,
+                "returns": ret,
+                "log_return": log_ret,
+                "dollar_volume": dollar_vol,
+                "turnover_ratio": turnover_ratio,
+                "intraday_range": intraday_range,
+                "gap": gap,
+                "upper_shadow": upper_shadow,
+                "lower_shadow": lower_shadow,
+                "body": body,
             }
-            close_list.append(sub["close"].values.astype(np.float64))
+            close_list.append(c)
 
         if len(tickers) < 20:
             continue

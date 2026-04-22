@@ -185,6 +185,59 @@ def ts_cov(x, y, d):
     return out
 
 
+# ── New TS operators (Tier 1 + Tier 2) ────────────────────────────────
+
+def ts_argmax(x, d):
+    """Index of max value in d-day window (0 = oldest, d-1 = newest)."""
+    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    out = np.full_like(x, np.nan)
+    w = sliding_window_view(x, d)
+    out[d-1:] = np.nanargmax(w, axis=1).astype(np.float64)
+    return out
+
+def ts_argmin(x, d):
+    """Index of min value in d-day window (0 = oldest, d-1 = newest)."""
+    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    out = np.full_like(x, np.nan)
+    w = sliding_window_view(x, d)
+    out[d-1:] = np.nanargmin(w, axis=1).astype(np.float64)
+    return out
+
+def ts_product(x, d):
+    """Rolling product over d days."""
+    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    out = np.full_like(x, np.nan)
+    # Clip to avoid overflow
+    xc = np.clip(x, -10, 10)
+    w = sliding_window_view(xc, d)
+    out[d-1:] = np.nanprod(w, axis=1)
+    return out
+
+def ts_decay_linear(x, d):
+    """Linearly decaying weighted average (most recent = weight d, oldest = weight 1)."""
+    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    weights = np.arange(1, d + 1, dtype=np.float64)
+    weights /= weights.sum()
+    out = np.full_like(x, np.nan)
+    w = sliding_window_view(x, d)
+    out[d-1:] = np.nansum(w * weights, axis=1)
+    return out
+
+
+# ── New CS unary operators (Tier 2) ───────────────────────────────────
+
+def cs_scale(x):
+    """Normalize to sum(abs(x)) = 1, preserving sign."""
+    total = np.nansum(np.abs(x))
+    if total < 1e-10:
+        return np.zeros_like(x)
+    return x / total
+
+def cs_signedpower(x, e=2.0):
+    """sign(x) * |x|^e, preserves sign with nonlinear scaling."""
+    return np.sign(x) * np.power(np.abs(x) + 1e-10, e)
+
+
 # ── Helper ─────────────────────────────────────────────────────────────
 
 def returns(close):
@@ -216,6 +269,10 @@ TS_UNARY_OPS = [
     ("ts_rank", 1, ts_rank, True, (3, 60)),
     ("ts_wma", 1, ts_wma, True, (3, 60)),
     ("ts_ema", 1, ts_ema, True, (3, 60)),
+    ("ts_argmax", 1, ts_argmax, True, (3, 60)),
+    ("ts_argmin", 1, ts_argmin, True, (3, 60)),
+    ("ts_product", 1, ts_product, True, (2, 10)),
+    ("ts_decay_linear", 1, ts_decay_linear, True, (3, 60)),
 ]
 
 TS_BINARY_OPS = [
@@ -228,6 +285,7 @@ CS_UNARY_OPS = [
     ("cs_log", 1, cs_log, False, None),
     ("cs_sign", 1, cs_sign, False, None),
     ("cs_rank", 1, cs_rank, False, None),
+    ("cs_scale", 1, cs_scale, False, None),
 ]
 
 CS_BINARY_OPS = [
@@ -245,8 +303,20 @@ OP_DICT = {op[0]: op for op in ALL_OPS}
 UNARY_OPS = [op for op in ALL_OPS if op[1] == 1]
 BINARY_OPS = [op for op in ALL_OPS if op[1] == 2]
 
-# Input features (raw OHLCV, matching AlphaGen)
-FEATURES = ["open", "high", "low", "close", "volume", "vwap"]
+# Input features: raw OHLCV + derived features that break price-ratio convergence
+FEATURES = [
+    "open", "high", "low", "close", "volume", "vwap",
+    # Derived features (computed in data.py prepare_eval_data)
+    "returns",          # daily returns: (close - prev_close) / prev_close
+    "log_return",       # log(close / prev_close)
+    "dollar_volume",    # close * volume (liquidity)
+    "turnover_ratio",   # volume / adv20 (activity surprise)
+    "intraday_range",   # (high - low) / close (volatility proxy)
+    "gap",              # open / prev_close - 1 (overnight return)
+    "upper_shadow",     # (high - max(open, close)) / close (selling pressure)
+    "lower_shadow",     # (min(open, close) - low) / close (buying pressure)
+    "body",             # (close - open) / close (directional conviction)
+]
 
 # Time window tokens (matching AlphaGen)
 WINDOWS = [1, 5, 10, 20, 40]

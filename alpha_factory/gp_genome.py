@@ -143,7 +143,7 @@ def _replace_node(target: Node, replacement: Node) -> None:
 
 
 # ── Cross-sectional operator names (need matrix-level eval) ───────────
-_CS_OPS = {"cs_abs", "cs_log", "cs_sign", "cs_rank"}
+_CS_OPS = {"cs_abs", "cs_log", "cs_sign", "cs_rank", "cs_scale"}
 _CS_BINARY_OPS = {"add", "sub", "mul", "div", "pow", "greater", "less"}
 
 # Map CS op names to functions that work on (n_stocks,) slices
@@ -234,9 +234,7 @@ def _eval_node_matrix(
     if node.op is None:
         mat = np.full((n_stocks, n_days), np.nan)
         for i, ticker in enumerate(tickers):
-            if node.feature == "returns":
-                v = returns(stock_data[ticker]["close"])
-            elif node.feature == "vwap":
+            if node.feature == "vwap" and "vwap" not in stock_data[ticker]:
                 d = stock_data[ticker]
                 v = _safe_div(
                     (d["high"] + d["low"] + d["close"]) * d["volume"],
@@ -261,6 +259,18 @@ def _eval_node_matrix(
         # Elementwise ops: apply to whole matrix (fast)
         if op_name in _CS_ELEMENTWISE:
             return _CS_ELEMENTWISE[op_name](child_mat)
+
+        # cs_scale: normalize sum(abs) to 1 per day
+        if op_name == "cs_scale":
+            result = np.full_like(child_mat, np.nan)
+            for t in range(n_days):
+                col = child_mat[:, t]
+                total = np.nansum(np.abs(col))
+                if total < 1e-10:
+                    result[:, t] = 0.0
+                else:
+                    result[:, t] = col / total
+            return result
 
         # cs_rank: must rank per-day (vectorized via argsort)
         if op_name == "cs_rank":

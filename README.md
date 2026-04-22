@@ -49,15 +49,31 @@ Why does this matter for finance? Standard GP run 10 times will converge to the 
 
 ---
 
-## The Operator Set (28 Operators)
+## The Operator Set (33 Operators)
 
-Alpha expressions are trees built from 28 operators operating on 6 input features (`open`, `high`, `low`, `close`, `volume`, `vwap`). The operators fall into four groups based on two distinctions:
+Alpha expressions are trees built from 33 operators operating on 15 input features. The 6 raw features are `open`, `high`, `low`, `close`, `volume`, `vwap`. 9 derived features are computed from these during data preparation:
+
+| Feature | Formula | What it captures |
+|---------|---------|-----------------|
+| `returns` | (close - prev_close) / prev_close | Daily return |
+| `log_return` | log(close / prev_close) | Log return (better statistical properties) |
+| `dollar_volume` | close * volume | Liquidity |
+| `turnover_ratio` | volume / adv20 | Activity surprise (volume relative to 20-day average) |
+| `intraday_range` | (high - low) / close | Intraday volatility proxy |
+| `gap` | open / prev_close - 1 | Overnight return |
+| `upper_shadow` | (high - max(open, close)) / close | Selling pressure |
+| `lower_shadow` | (min(open, close) - low) / close | Buying pressure |
+| `body` | (close - open) / close | Directional conviction |
+
+These derived features break GP out of the "everything is a price ratio" trap. Without them, the search converges to one dominant pattern (e.g., `div(vwap, close)`). With them, the GP can compose signals from returns, volatility, liquidity, and candlestick structure, producing a wider variety of alpha families.
+
+The operators fall into four groups based on two distinctions:
 
 **Cross-sectional vs. time-series.** A cross-sectional operator works across all stocks at a single point in time. For example, `cs_rank(close)` ranks all 50 stocks by their closing price on day _t_, giving each stock a percentile from 0 to 1. Stock with the highest close gets rank 1.0; the lowest gets rank ~0.02. A time-series operator works across time for a single stock. For example, `ts_rank(close, 20)` looks at one stock's closing prices over the past 20 days and reports where today's close falls as a percentile within that window. These are fundamentally different computations even though both are called "rank."
 
 **Unary vs. binary.** Unary operators take one input series (plus an optional window parameter). Binary operators take two input series (plus an optional window parameter).
 
-### Cross-Sectional Unary (4 operators)
+### Cross-Sectional Unary (5 operators)
 
 | Operator | Description | Example |
 |----------|-------------|---------|
@@ -65,6 +81,7 @@ Alpha expressions are trees built from 28 operators operating on 6 input feature
 | `cs_log(x)` | Natural log (0 for non-positive inputs) | `cs_log(volume)` = log trading volume |
 | `cs_sign(x)` | Sign: -1, 0, or +1 | `cs_sign(returns)` = direction of daily move |
 | `cs_rank(x)` | Cross-sectional percentile rank (0 to 1) | `cs_rank(close)` = relative price rank among all stocks today |
+| `cs_scale(x)` | Normalize so sum(abs) = 1 across stocks | `cs_scale(returns)` = relative magnitude, sign preserved |
 
 ### Cross-Sectional Binary (7 operators)
 
@@ -78,7 +95,7 @@ Alpha expressions are trees built from 28 operators operating on 6 input feature
 | `greater(x, y)` | Elementwise maximum | `greater(open, close)` = max of open and close |
 | `less(x, y)` | Elementwise minimum | `less(high, low)` = always equals low |
 
-### Time-Series Unary (15 operators)
+### Time-Series Unary (19 operators)
 
 All take a window parameter `d` specifying the lookback period in trading days.
 
@@ -99,6 +116,10 @@ All take a window parameter `d` specifying the lookback period in trading days.
 | `ts_rank(x, d)` | 3-60 | Percentile rank within rolling window | `ts_rank(close, 20)` = where today's close falls in 20-day history |
 | `ts_wma(x, d)` | 3-60 | Weighted moving average (linear decay) | `ts_wma(close, 10)` = recent days weighted more |
 | `ts_ema(x, d)` | 3-60 | Exponential moving average | `ts_ema(close, 20)` = EMA with span 20 |
+| `ts_argmax(x, d)` | 3-60 | Days since max in window (0=oldest, d-1=newest) | `ts_argmax(close, 20)` = when was the 20-day high? |
+| `ts_argmin(x, d)` | 3-60 | Days since min in window | `ts_argmin(close, 20)` = when was the 20-day low? |
+| `ts_product(x, d)` | 2-10 | Rolling product (captures compounding) | `ts_product(returns, 5)` = 5-day compounded return |
+| `ts_decay_linear(x, d)` | 3-60 | Linearly decaying weighted average | `ts_decay_linear(volume, 10)` = recent volume weighted more |
 
 ### Time-Series Binary (2 operators)
 
@@ -107,7 +128,17 @@ All take a window parameter `d` specifying the lookback period in trading days.
 | `ts_corr(x, y, d)` | 5-60 | Rolling Pearson correlation | `ts_corr(close, volume, 20)` = 20-day price-volume correlation |
 | `ts_cov(x, y, d)` | 5-60 | Rolling covariance | `ts_cov(open, close, 10)` = 10-day open-close covariance |
 
-This operator set matches AlphaGen (Yu et al., KDD 2023) and draws from Alpha101 (Kakushadze, 2016).
+The core operator set matches AlphaGen (Yu et al., KDD 2023) and draws from Alpha101 (Kakushadze, 2016). The `ts_argmax`/`ts_argmin` operators produce timing signals (integer-valued, fundamentally different from price ratios) that cannot be constructed from the other operators. `ts_product` captures compounding effects. `cs_scale` enables portfolio-weight normalization within expressions.
+
+### Diversity Mechanisms
+
+Standard GP converges to one dominant factor family. In our initial experiments, 8 of 10 GP runs converged to the same `div(vwap, close)` pattern, and the MAP-Elites archive filled with variants of it (pairwise correlation 0.587). MAGE uses three mechanisms to prevent this:
+
+1. **Correlation gate.** Before inserting an alpha into the archive, compute its rank correlation with every existing archive member. Reject if `max |corr| > 0.7`. This prevents functionally identical alphas from occupying different cells. Inspired by AlphaForge's (AAAI 2025) factor zoo filtering (threshold 0.5).
+
+2. **Structural similarity filter.** Hash each GP tree bottom-up (sorting children of commutative operators). Reject if structural similarity with the current cell occupant exceeds 0.8. This catches syntactic variants like `div(vwap, close)` and `div(vwap, mul(close, 1.0))`. Based on Burlacu et al. (CEC 2019).
+
+3. **Novelty-weighted population fitness.** For parent selection, multiply Sharpe by `(1 - max_corr_with_archive)`. Alphas that are novel relative to the archive get higher selection probability. Alphas that duplicate existing archive signals get deprioritized even if their Sharpe is high. Similar to AlphaSAGE's (2025) novelty reward component.
 
 ---
 
@@ -165,7 +196,13 @@ All top alphas generalize to the validation period (2020). Validation Sharpe exc
 
 ![Turnover vs Sharpe](figures/turnover_vs_sharpe.png)
 
-> Figures generated from the full cluster run (pop=200, 100 gens, 236 CPUs, 119 filled cells).
+> Figures from v1 run (33 operators, 15 features, no diversity gates). v2 run (with correlation gate, structural filter, novelty fitness) in progress.
+
+### Out-of-Sample Performance (v1)
+
+The v1 archive was dominated by one factor family (`div(vwap, close)` and smoothed variants). Test set (2021-2022) performance was weak: best individual Sharpe 1.15, combined top-10 Sharpe 0.49. Most ICs went negative. The 2021-2022 period (rate hikes, inflation) was a genuine regime break from the 2010-2019 training period.
+
+This motivated the v2 diversity mechanisms (correlation gate, structural filter, novelty fitness) and expanded feature set. The v2 local test (15 gens) showed 22 unique root operators across the archive vs v1's convergence to a single pattern. Full v2 cluster results pending.
 
 ---
 

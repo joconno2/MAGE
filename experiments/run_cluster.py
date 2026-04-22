@@ -27,7 +27,28 @@ from alpha_factory.data import download_ohlcv, prepare_eval_data, SP100_TICKERS
 from alpha_factory.gp_genome import (
     Node, random_tree, mutate, crossover, compute_signals,
 )
-from alpha_factory.evaluate import evaluate_signals, AlphaMetrics
+from alpha_factory.evaluate import evaluate_signals, normalize_alpha, AlphaMetrics
+
+
+def _max_corr_with_archive(flat_sig, archive_signals, threshold=0.7):
+    """Check max abs correlation with any archived signal."""
+    if not archive_signals:
+        return 0.0, True
+    valid = ~np.isnan(flat_sig)
+    if valid.sum() < 100:
+        return 1.0, False
+    sig = np.where(valid, flat_sig, 0.0)
+    max_corr = 0.0
+    for archived in archive_signals.values():
+        v = valid & ~np.isnan(archived)
+        if v.sum() < 100:
+            continue
+        corr = abs(np.corrcoef(sig[v], archived[v])[0, 1])
+        if not np.isnan(corr) and corr > max_corr:
+            max_corr = corr
+            if max_corr > threshold:
+                return max_corr, False
+    return max_corr, True
 
 
 def _make_eval_fn():
@@ -126,12 +147,28 @@ def run_mapelites(args):
     init_results = _eval_batch(population, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days)
     print(f"Init eval: {time.monotonic()-t0:.0f}s")
 
+    corr_threshold = 0.7
+    archive_signals = {}  # cell -> flattened normalized signal
+
+    def try_insert(tree, r):
+        """Insert into archive with correlation gate. Returns True if inserted."""
+        c = cell(r)
+        if c in grid and r["sharpe"] <= grid[c]["sharpe"]:
+            return False
+        # Compute signal locally for correlation check
+        signals = compute_signals(tree, train["stock_data"], n_days)
+        flat_sig = normalize_alpha(signals).flatten()
+        max_corr, passes = _max_corr_with_archive(flat_sig, archive_signals, corr_threshold)
+        if not passes:
+            return False
+        grid[c] = {"tree": tree, **r, "max_corr": max_corr}
+        archive_signals[c] = flat_sig
+        return True
+
     for i, (tree, r) in enumerate(zip(population, init_results)):
         pop_fitness[i] = r["sharpe"] if r["valid"] else -999
         if r["valid"] and r["sharpe"] > 0:
-            c = cell(r)
-            if c not in grid or r["sharpe"] > grid[c]["sharpe"]:
-                grid[c] = {"tree": tree, **r}
+            try_insert(tree, r)
 
     print(f"Initial coverage: {len(grid)}/{grid_size**2}")
 
@@ -170,9 +207,7 @@ def run_mapelites(args):
             f = r["sharpe"] if r["valid"] else -999
             new_fitness.append(f)
             if r["valid"] and r["sharpe"] > 0:
-                c = cell(r)
-                if c not in grid or r["sharpe"] > grid[c]["sharpe"]:
-                    grid[c] = {"tree": tree, **r}
+                if try_insert(tree, r):
                     inserted += 1
 
         population = children

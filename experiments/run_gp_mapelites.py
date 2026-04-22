@@ -35,7 +35,67 @@ from alpha_factory.data import download_ohlcv, prepare_eval_data, SP100_TICKERS
 from alpha_factory.gp_genome import (
     Node, random_tree, mutate, crossover, compute_signals, evaluate_tree,
 )
-from alpha_factory.evaluate import AlphaMetrics
+from alpha_factory.evaluate import AlphaMetrics, normalize_alpha
+
+
+# ── Correlation gate ──────────────────────────────────────────────────
+
+def _compute_flat_signal(tree, split):
+    """Compute normalized signal and flatten for correlation checks."""
+    signals = compute_signals(tree, split["stock_data"], split["n_days"])
+    normed = normalize_alpha(signals)
+    return normed.flatten()
+
+
+def _max_corr_with_archive(flat_signal, archive_signals, threshold=0.7):
+    """Compute max abs correlation with any archived signal.
+    Returns (max_corr, passes_gate).
+    """
+    if not archive_signals:
+        return 0.0, True
+    valid = ~np.isnan(flat_signal)
+    if valid.sum() < 100:
+        return 1.0, False
+    sig = np.where(valid, flat_signal, 0.0)
+    max_corr = 0.0
+    for archived in archive_signals.values():
+        v = valid & ~np.isnan(archived)
+        if v.sum() < 100:
+            continue
+        corr = abs(np.corrcoef(sig[v], archived[v])[0, 1])
+        if not np.isnan(corr) and corr > max_corr:
+            max_corr = corr
+            if max_corr > threshold:
+                return max_corr, False
+    return max_corr, True
+
+
+# ── Tree hashing for structural diversity ─────────────────────────────
+
+def _tree_hash(node):
+    """Hash a GP tree for structural similarity. Commutative ops sort children."""
+    if node.op is None:
+        return hash(("leaf", node.feature))
+    child_hashes = [_tree_hash(c) for c in node.children]
+    # Sort for commutative ops
+    if node.op in ("add", "mul", "greater", "less", "ts_corr", "ts_cov"):
+        child_hashes.sort()
+    return hash((node.op, node.param, tuple(child_hashes)))
+
+
+def _tree_similarity(t1, t2):
+    """Structural similarity between two trees (0=different, 1=identical)."""
+    nodes1 = set()
+    nodes2 = set()
+    def _collect_hashes(node, s):
+        s.add(_tree_hash(node))
+        for c in node.children:
+            _collect_hashes(c, s)
+    _collect_hashes(t1, nodes1)
+    _collect_hashes(t2, nodes2)
+    if not nodes1 or not nodes2:
+        return 0.0
+    return 2 * len(nodes1 & nodes2) / (len(nodes1) + len(nodes2))
 
 
 def _eval(tree, split):
@@ -89,8 +149,48 @@ def run_mapelites(args):
     }
     (output_dir / "config.json").write_text(json.dumps(config, indent=2))
 
+    corr_threshold = getattr(args, "corr_threshold", 0.7)
+    struct_threshold = getattr(args, "struct_threshold", 0.8)
+
     print(f"\nGP+MAP-Elites | pop={pop_size} gens={args.gens} grid={grid_size}x{grid_size}")
+    print(f"  corr_gate={corr_threshold} struct_gate={struct_threshold}")
     print(f"Output: {output_dir}\n")
+
+    # Archive signal cache: cell -> flattened normalized signal
+    archive_signals = {}
+
+    def try_insert(tree, m):
+        """Try inserting into archive. Returns True if inserted."""
+        c = cell(m)
+        if c in grid and m.sharpe <= grid[c]["sharpe"]:
+            return False
+
+        # Structural similarity gate
+        if c in grid and _tree_similarity(tree, grid[c]["tree"]) > struct_threshold:
+            return False
+
+        # Correlation gate: reject if too correlated with any existing archive member
+        flat_sig = _compute_flat_signal(tree, train)
+        max_corr, passes = _max_corr_with_archive(flat_sig, archive_signals, corr_threshold)
+        if not passes:
+            return False
+
+        # Insert
+        grid[c] = {
+            "tree": tree,
+            "tree_str": str(tree),
+            "sharpe": m.sharpe,
+            "ic": m.ic,
+            "rank_ic": m.rank_ic,
+            "icir": m.icir,
+            "turnover": m.turnover,
+            "market_corr": m.market_corr,
+            "annual_return": m.annual_return,
+            "max_drawdown": m.max_drawdown,
+            "max_corr": max_corr,
+        }
+        archive_signals[c] = flat_sig
+        return True
 
     # Init
     print(f"Initializing ({pop_size} trees)...")
@@ -98,20 +198,7 @@ def run_mapelites(args):
         m = _eval(tree, train)
         pop_fitness[i] = m.sharpe if m.valid else -999
         if m.valid and m.sharpe > 0:
-            c = cell(m)
-            if c not in grid or m.sharpe > grid[c]["sharpe"]:
-                grid[c] = {
-                    "tree": tree,
-                    "tree_str": str(tree),
-                    "sharpe": m.sharpe,
-                    "ic": m.ic,
-                    "rank_ic": m.rank_ic,
-                    "icir": m.icir,
-                    "turnover": m.turnover,
-                    "market_corr": m.market_corr,
-                    "annual_return": m.annual_return,
-                    "max_drawdown": m.max_drawdown,
-                }
+            try_insert(tree, m)
 
     print(f"Initial coverage: {len(grid)}/{grid_size**2}")
 
@@ -121,6 +208,7 @@ def run_mapelites(args):
     for gen in range(1, args.gens + 1):
         t0 = time.monotonic()
         inserted = 0
+        corr_rejected = 0
 
         new_pop = []
         new_fitness = []
@@ -129,16 +217,13 @@ def run_mapelites(args):
             src = rng.random()
 
             if src < 0.3 and grid:
-                # Parent from archive elite
                 elite = rng.choice(list(grid.values()))
                 child = mutate(elite["tree"], rng=rng)
             elif src < 0.7:
-                # Tournament from population
                 candidates = rng.sample(range(len(population)), min(args.tournament, len(population)))
                 winner = max(candidates, key=lambda i: pop_fitness[i])
                 child = mutate(population[winner], rng=rng)
             else:
-                # Crossover
                 c1 = rng.sample(range(len(population)), min(args.tournament, len(population)))
                 c2 = rng.sample(range(len(population)), min(args.tournament, len(population)))
                 p1 = population[max(c1, key=lambda i: pop_fitness[i])]
@@ -147,25 +232,22 @@ def run_mapelites(args):
 
             m = _eval(child, train)
             total_evals += 1
-            f = m.sharpe if m.valid else -999
+
+            # Novelty-weighted fitness for population selection:
+            # penalize correlation with archive
+            if m.valid and m.sharpe > 0 and archive_signals:
+                flat_sig = _compute_flat_signal(child, train)
+                max_c, _ = _max_corr_with_archive(flat_sig, archive_signals, 1.0)
+                novelty_weight = 1.0 - max_c
+                f = m.sharpe * max(novelty_weight, 0.1)
+            else:
+                f = m.sharpe if m.valid else -999
+
             new_pop.append(child)
             new_fitness.append(f)
 
             if m.valid and m.sharpe > 0:
-                c = cell(m)
-                if c not in grid or m.sharpe > grid[c]["sharpe"]:
-                    grid[c] = {
-                        "tree": child,
-                        "tree_str": str(child),
-                        "sharpe": m.sharpe,
-                        "ic": m.ic,
-                        "rank_ic": m.rank_ic,
-                        "icir": m.icir,
-                        "turnover": m.turnover,
-                        "market_corr": m.market_corr,
-                        "annual_return": m.annual_return,
-                        "max_drawdown": m.max_drawdown,
-                    }
+                if try_insert(child, m):
                     inserted += 1
 
         population = new_pop
@@ -398,6 +480,10 @@ def main():
     me_p.add_argument("--gens", type=int, default=50)
     me_p.add_argument("--grid-size", type=int, default=20)
     me_p.add_argument("--tournament", type=int, default=7)
+    me_p.add_argument("--corr-threshold", type=float, default=0.7,
+                       help="Max correlation with archive for insertion (0.5=strict, 0.9=loose)")
+    me_p.add_argument("--struct-threshold", type=float, default=0.8,
+                       help="Max structural similarity with cell occupant")
 
     gp_p = sub.add_parser("gp", help="GP baseline (multiple runs)")
     _shared(gp_p)
