@@ -1,0 +1,9 @@
+{
+  "algorithm": "gp",
+  "population": 200,
+  "generations": 20,
+  "n_runs": 10,
+  "n_stocks": 50,
+  "n_days": 1132,
+  "n_samples": 55550
+}
