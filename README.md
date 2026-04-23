@@ -212,7 +212,7 @@ The dominant signal family combines selling pressure (`upper_shadow`), liquidity
 | Pairwise correlation | **0.094** |
 | Unique programs | 10 / 10 |
 
-With the expanded feature set (15 features, 33 operators), GP no longer collapses to one factor family. All 10 runs produce structurally different alphas with low pairwise correlation. The diversity contribution of MAP-Elites is less dramatic when the feature set itself enables diversity. MAP-Elites still provides the behavioral grid (turnover x market correlation), which organizes alphas by deployment-relevant axes that GP does not optimize for.
+With the expanded feature set (15 features, 33 operators), GP finds diverse alphas on this run. With the original 6-feature set, GP collapsed to one factor family (pairwise corr 0.494, 8/10 runs converging to the same pattern). GP's diversity depends on the feature set and is not structurally guaranteed. MAGE's correlation gate and behavioral grid enforce diversity regardless, and the grid organizes alphas by deployment-relevant axes (turnover, market correlation) that GP does not optimize for.
 
 ### Figures
 
