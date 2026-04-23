@@ -151,20 +151,38 @@ def prepare_eval_data(
 
     result = {}
     for split_name, (start, end) in splits.items():
-        # Find common dates
-        common_dates = None
+        # Find trading dates from the broadest stock, then keep stocks
+        # that cover at least 90% of those dates. This avoids collapsing
+        # the date range when recent IPOs have short histories.
+        all_dates = set()
+        per_ticker_dates = {}
         for ticker, df in raw_data.items():
             mask = (df.index >= start) & (df.index <= end)
             sub = df[mask].dropna(how="all")
             if len(sub) < 50:
                 continue
-            if common_dates is None:
-                common_dates = sub.index
-            else:
-                common_dates = common_dates.intersection(sub.index)
+            per_ticker_dates[ticker] = sub.index
+            all_dates.update(sub.index)
 
-        if common_dates is None or len(common_dates) < 60:
+        if not all_dates:
             continue
+
+        # Use dates covered by at least 80% of stocks
+        sorted_dates = sorted(all_dates)
+        date_counts = {}
+        for dates in per_ticker_dates.values():
+            for d in dates:
+                date_counts[d] = date_counts.get(d, 0) + 1
+        n_tickers_total = len(per_ticker_dates)
+        common_dates = pd.DatetimeIndex(sorted(
+            d for d, c in date_counts.items() if c >= n_tickers_total * 0.8
+        ))
+
+        if len(common_dates) < 60:
+            continue
+
+        # Keep stocks with at least 90% coverage of common dates
+        min_coverage = int(len(common_dates) * 0.9)
 
         # Build aligned arrays
         tickers = []
@@ -173,8 +191,11 @@ def prepare_eval_data(
 
         for ticker, df in raw_data.items():
             sub = df.reindex(common_dates).ffill().bfill()
-            if sub.isnull().any(axis=None):
+            n_valid = sub.notna().all(axis=1).sum()
+            if n_valid < min_coverage:
                 continue
+            # Fill any remaining gaps
+            sub = sub.ffill().bfill().fillna(0)
             sub.columns = [c.lower() for c in sub.columns]
 
             tickers.append(ticker)
