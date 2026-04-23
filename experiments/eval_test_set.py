@@ -24,7 +24,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from alpha_factory.data import download_ohlcv, prepare_eval_data, SP100_TICKERS
+from alpha_factory.data import download_ohlcv, prepare_eval_data, SP500_TICKERS
 from alpha_factory.gp_genome import compute_signals, evaluate_tree, random_tree
 from alpha_factory.evaluate import (
     evaluate_signals, normalize_alpha, long_short_backtest,
@@ -97,7 +97,7 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Load data
-    raw = download_ohlcv(SP100_TICKERS[:args.n_stocks])
+    raw = download_ohlcv(SP500_TICKERS[:args.n_stocks])
     splits = prepare_eval_data(raw)
 
     for split_name in ["train", "val", "test"]:

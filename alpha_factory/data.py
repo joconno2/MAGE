@@ -12,27 +12,70 @@ from typing import Optional
 
 CACHE_DIR = Path.home() / "research" / "alpha-factory" / "data"
 
-# S&P 100 proxy
-SP100_TICKERS = [
-    "AAPL", "MSFT", "AMZN", "GOOGL", "META", "NVDA", "BRK-B", "JPM",
-    "JNJ", "V", "UNH", "PG", "HD", "MA", "DIS", "PYPL", "BAC", "INTC",
-    "VZ", "CMCSA", "ADBE", "NFLX", "KO", "PEP", "T", "MRK", "ABT",
-    "CRM", "CSCO", "XOM", "PFE", "NKE", "WMT", "TMO", "AVGO", "ACN",
-    "COST", "LLY", "MCD", "DHR", "TXN", "NEE", "MDT", "LIN", "HON",
-    "UNP", "AMGN", "BMY", "PM", "RTX", "LOW", "QCOM", "ORCL", "IBM",
-    "CVX", "C", "GS", "CAT", "BLK", "ISRG", "GE", "MMM", "AXP",
-    "BA", "SBUX", "GILD", "DE", "SYK", "MDLZ", "PLD", "ADP", "TGT",
-    "BKNG", "LRCX", "MO", "CI", "ZTS", "CB", "SO", "DUK", "BDX",
-    "CL", "CME", "USB", "TFC", "ICE", "APD", "ECL", "FIS", "NSC",
-    "SHW", "ITW", "PNC", "AON", "WM", "EMR", "EW", "ATVI", "HUM", "F",
+# S&P 500 constituents (as of early 2026)
+SP500_TICKERS = [
+    "A", "AAPL", "ABBV", "ABNB", "ABT", "ACGL", "ACN", "ADBE", "ADI", "ADM",
+    "ADP", "ADSK", "AEE", "AEP", "AES", "AFL", "AIG", "AIZ", "AJG", "AKAM",
+    "ALB", "ALGN", "ALL", "ALLE", "AMAT", "AMCR", "AMD", "AME", "AMGN", "AMP",
+    "AMT", "AMZN", "ANET", "AON", "AOS", "APA", "APD", "APH", "APO", "APP",
+    "APTV", "ARE", "ARES", "ATO", "AVB", "AVGO", "AVY", "AWK", "AXON", "AXP",
+    "AZO", "BA", "BAC", "BALL", "BAX", "BBY", "BDX", "BEN", "BF-B", "BG",
+    "BIIB", "BK", "BKNG", "BKR", "BLDR", "BLK", "BMY", "BR", "BRK-B", "BRO",
+    "BSX", "BX", "BXP", "C", "CAG", "CAH", "CARR", "CASY", "CAT", "CB",
+    "CBOE", "CBRE", "CCI", "CCL", "CDNS", "CDW", "CEG", "CF", "CFG", "CHD",
+    "CHRW", "CHTR", "CI", "CINF", "CL", "CLX", "CMCSA", "CME", "CMG",
+    "CMI", "CMS", "CNC", "CNP", "COF", "COO", "COP", "COR",
+    "COST", "CPAY", "CPB", "CPRT", "CPT", "CRL", "CRM", "CRWD", "CSCO",
+    "CSGP", "CSX", "CTAS", "CTRA", "CTSH", "CTVA", "CVS", "CVX", "D",
+    "DAL", "DD", "DE", "DECK", "DELL", "DG", "DGX", "DHI",
+    "DHR", "DIS", "DLR", "DLTR", "DOV", "DOW", "DPZ", "DRI", "DTE",
+    "DUK", "DVA", "DVN", "DXCM", "EA", "EBAY", "ECL", "ED", "EFX",
+    "EIX", "EL", "ELV", "EME", "EMR", "EOG", "EPAM", "EQIX", "EQR", "EQT",
+    "ERIE", "ES", "ESS", "ETN", "ETR", "EVRG", "EW", "EXC", "EXPD",
+    "EXPE", "EXR", "F", "FANG", "FAST", "FCX", "FDS", "FDX", "FE", "FFIV",
+    "FICO", "FIS", "FISV", "FITB", "FOX", "FOXA", "FRT", "FSLR", "FTNT",
+    "FTV", "GD", "GDDY", "GE", "GEHC", "GEN", "GEV", "GILD", "GIS", "GL",
+    "GLW", "GM", "GNRC", "GOOG", "GOOGL", "GPC", "GPN", "GRMN", "GS", "GWW",
+    "HAL", "HAS", "HBAN", "HCA", "HD", "HIG", "HII", "HLT", "HON",
+    "HPE", "HPQ", "HRL", "HSIC", "HST", "HSY", "HUBB", "HUM", "HWM",
+    "IBM", "ICE", "IDXX", "IEX", "IFF", "INCY", "INTC", "INTU", "INVH", "IP",
+    "IQV", "IR", "IRM", "ISRG", "IT", "ITW", "IVZ", "J", "JBHT", "JBL",
+    "JCI", "JKHY", "JNJ", "JPM", "KDP", "KEY", "KEYS", "KHC", "KIM", "KKR",
+    "KLAC", "KMB", "KMI", "KO", "KR", "KVUE", "L", "LDOS", "LEN", "LH",
+    "LHX", "LIN", "LLY", "LMT", "LNT", "LOW", "LRCX", "LULU",
+    "LUV", "LVS", "LYB", "LYV", "MA", "MAA", "MAR", "MAS", "MCD", "MCHP",
+    "MCK", "MCO", "MDLZ", "MDT", "MET", "META", "MGM", "MKC", "MLM", "MMM",
+    "MNST", "MO", "MOS", "MPC", "MPWR", "MRK", "MRNA", "MS", "MSCI",
+    "MSFT", "MSI", "MTB", "MTD", "MU", "NCLH", "NDAQ", "NDSN", "NEE", "NEM",
+    "NFLX", "NI", "NKE", "NOC", "NOW", "NRG", "NSC", "NTAP", "NTRS", "NUE",
+    "NVDA", "NVR", "NWS", "NWSA", "NXPI", "O", "ODFL", "OKE", "OMC", "ON",
+    "ORCL", "ORLY", "OTIS", "OXY", "PANW", "PAYX", "PCAR", "PCG", "PEG", "PEP",
+    "PFE", "PFG", "PG", "PGR", "PH", "PHM", "PKG", "PLD", "PLTR", "PM",
+    "PNC", "PNR", "PNW", "PODD", "POOL", "PPG", "PPL", "PRU", "PSA",
+    "PSX", "PTC", "PWR", "PYPL", "QCOM", "RCL", "REG", "REGN", "RF",
+    "RJF", "RL", "RMD", "ROK", "ROL", "ROP", "ROST", "RSG", "RTX", "RVTY",
+    "SBAC", "SBUX", "SCHW", "SHW", "SJM", "SLB", "SMCI", "SNA",
+    "SNPS", "SO", "SPG", "SPGI", "SRE", "STE", "STLD", "STT", "STX",
+    "STZ", "SWK", "SWKS", "SYF", "SYK", "SYY", "T", "TAP", "TDG",
+    "TDY", "TECH", "TEL", "TER", "TFC", "TGT", "TJX", "TMO", "TMUS",
+    "TPR", "TRGP", "TRMB", "TROW", "TRV", "TSCO", "TSLA", "TSN", "TT",
+    "TTD", "TTWO", "TXN", "TXT", "TYL", "UAL", "UBER", "UDR", "UHS", "ULTA",
+    "UNH", "UNP", "UPS", "URI", "USB", "V", "VICI", "VLO", "VLTO", "VMC",
+    "VRSK", "VRSN", "VRT", "VRTX", "VST", "VTR", "VTRS", "VZ", "WAB", "WAT",
+    "WBD", "WDAY", "WDC", "WEC", "WELL", "WFC", "WM", "WMB", "WMT", "WRB",
+    "WST", "WTW", "WY", "WYNN", "XEL", "XOM", "XYL", "YUM",
+    "ZBH", "ZBRA", "ZTS",
 ]
+
+# Keep old name for backward compat
+SP100_TICKERS = SP500_TICKERS
 
 
 def download_ohlcv(
     tickers: list[str],
     start: str = "2010-01-01",
     end: str = "2023-12-31",
-    cache_name: str = "sp100",
+    cache_name: str = "sp500",
 ) -> dict[str, pd.DataFrame]:
     """Download daily OHLCV. Caches to parquet."""
     cache_path = CACHE_DIR / f"{cache_name}_{start}_{end}.parquet"

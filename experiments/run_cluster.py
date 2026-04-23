@@ -23,7 +23,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from alpha_factory.data import download_ohlcv, prepare_eval_data, SP100_TICKERS
+from alpha_factory.data import download_ohlcv, prepare_eval_data, SP500_TICKERS
 from alpha_factory.gp_genome import (
     Node, random_tree, mutate, crossover, compute_signals,
 )
@@ -82,20 +82,33 @@ def _make_eval_fn():
     return eval_tree_remote
 
 
-def _eval_batch(trees, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days):
-    """Evaluate a batch of trees in parallel on Ray."""
+def _eval_batch(trees, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days,
+                _reconnect_fn=None):
+    """Evaluate a batch of trees in parallel on Ray. Retries on tunnel drops."""
     import ray
-    refs = [
-        eval_fn.remote(pickle.dumps(t), stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days)
-        for t in trees
-    ]
-    return ray.get(refs)
+    max_retries = 3
+    for attempt in range(max_retries + 1):
+        try:
+            refs = [
+                eval_fn.remote(pickle.dumps(t), stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days)
+                for t in trees
+            ]
+            return ray.get(refs)
+        except (ConnectionError, ray.exceptions.RayTaskError) as e:
+            if attempt == max_retries:
+                raise
+            wait = 10 * (2 ** attempt)
+            print(f"  [retry {attempt+1}/{max_retries}] {type(e).__name__}, reconnecting in {wait}s...")
+            time.sleep(wait)
+            if _reconnect_fn:
+                stock_ref, close_ref, fwd1d_ref, fwd20d_ref, eval_fn = _reconnect_fn()
+    return []  # unreachable
 
 
 def run_mapelites(args):
     import ray
     # Data
-    raw = download_ohlcv(SP100_TICKERS[:args.n_stocks])
+    raw = download_ohlcv(SP500_TICKERS[:args.n_stocks])
     splits = prepare_eval_data(raw)
     train = splits["train"]
     print(f"Data: {train['n_stocks']} stocks, {train['n_days']} days")
@@ -116,6 +129,25 @@ def run_mapelites(args):
     fwd1d_ref = ray.put(train["fwd_returns_1d"])
     fwd20d_ref = ray.put(train["fwd_returns_20d"])
     n_days = train["n_days"]
+
+    def _reconnect():
+        """Reconnect to cluster after tunnel drop, re-put data."""
+        nonlocal stock_ref, close_ref, fwd1d_ref, fwd20d_ref, eval_fn
+        try:
+            ray.shutdown()
+        except Exception:
+            pass
+        if args.auto_cluster:
+            from aall_cluster import connect
+            connect(namespace="mage", verbose=True)
+        else:
+            ray.init(args.ray_address, namespace="mage")
+        eval_fn = _make_eval_fn()
+        stock_ref = ray.put(train["stock_data"])
+        close_ref = ray.put(train["close_prices"])
+        fwd1d_ref = ray.put(train["fwd_returns_1d"])
+        fwd20d_ref = ray.put(train["fwd_returns_20d"])
+        return stock_ref, close_ref, fwd1d_ref, fwd20d_ref, eval_fn
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -144,7 +176,7 @@ def run_mapelites(args):
     # Init: parallel eval of all initial trees
     print(f"Initializing ({pop_size} trees in parallel)...")
     t0 = time.monotonic()
-    init_results = _eval_batch(population, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days)
+    init_results = _eval_batch(population, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days, _reconnect)
     print(f"Init eval: {time.monotonic()-t0:.0f}s")
 
     corr_threshold = 0.7
@@ -197,7 +229,7 @@ def run_mapelites(args):
                 children.append(crossover(p1, p2, rng=rng))
 
         # Parallel eval on cluster
-        results = _eval_batch(children, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days)
+        results = _eval_batch(children, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days, _reconnect)
         total_evals += pop_size
 
         # Update population and archive
@@ -258,7 +290,7 @@ def run_mapelites(args):
 
 def run_gp(args):
     import ray
-    raw = download_ohlcv(SP100_TICKERS[:args.n_stocks])
+    raw = download_ohlcv(SP500_TICKERS[:args.n_stocks])
     splits = prepare_eval_data(raw)
     train = splits["train"]
     print(f"Data: {train['n_stocks']} stocks, {train['n_days']} days")
@@ -351,7 +383,7 @@ def run_gp(args):
 
 def run_random(args):
     import ray
-    raw = download_ohlcv(SP100_TICKERS[:args.n_stocks])
+    raw = download_ohlcv(SP500_TICKERS[:args.n_stocks])
     splits = prepare_eval_data(raw)
     train = splits["train"]
 
@@ -405,7 +437,7 @@ def main():
 
     def _shared(p):
         p.add_argument("--ray-address", default=None, help="Ray address (e.g. 'auto')")
-        p.add_argument("--n-stocks", type=int, default=50)
+        p.add_argument("--n-stocks", type=int, default=500)
         p.add_argument("--seed", type=int, default=42)
         p.add_argument("--output", required=True)
 

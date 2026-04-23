@@ -31,7 +31,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from alpha_factory.data import download_ohlcv, prepare_eval_data, SP100_TICKERS
+from alpha_factory.data import download_ohlcv, prepare_eval_data, SP500_TICKERS
 from alpha_factory.gp_genome import (
     Node, random_tree, mutate, crossover, compute_signals, evaluate_tree,
 )
@@ -113,7 +113,7 @@ def _eval(tree, split):
 # ── MAP-Elites ─────────────────────────────────────────────────────────
 
 def run_mapelites(args):
-    raw = download_ohlcv(SP100_TICKERS[:args.n_stocks])
+    raw = download_ohlcv(SP500_TICKERS[:args.n_stocks])
     splits = prepare_eval_data(raw)
     train = splits["train"]
     print(f"Data: {train['n_stocks']} stocks, {train['n_days']} days")
@@ -290,7 +290,7 @@ def run_mapelites(args):
 # ── GP baseline ────────────────────────────────────────────────────────
 
 def run_gp_baseline(args):
-    raw = download_ohlcv(SP100_TICKERS[:args.n_stocks])
+    raw = download_ohlcv(SP500_TICKERS[:args.n_stocks])
     splits = prepare_eval_data(raw)
     train = splits["train"]
     print(f"Data: {train['n_stocks']} stocks, {train['n_days']} days")
@@ -405,7 +405,7 @@ def run_gp_baseline(args):
 # ── Random baseline ───────────────────────────────────────────────────
 
 def run_random(args):
-    raw = download_ohlcv(SP100_TICKERS[:args.n_stocks])
+    raw = download_ohlcv(SP500_TICKERS[:args.n_stocks])
     splits = prepare_eval_data(raw)
     train = splits["train"]
 
@@ -470,7 +470,7 @@ def main():
     sub = parser.add_subparsers(dest="algorithm", required=True)
 
     def _shared(p):
-        p.add_argument("--n-stocks", type=int, default=50)
+        p.add_argument("--n-stocks", type=int, default=500)
         p.add_argument("--seed", type=int, default=42)
         p.add_argument("--output", required=True)
 
