@@ -144,45 +144,75 @@ Standard GP converges to one dominant factor family. In our initial experiments,
 
 ## Results
 
-These results are from a full cluster run: population 200, 100 generations, 20x20 grid, 50 stocks (S&P 100 subset), training period 2010-2019. Run on 236 CPUs across 18 nodes (~4 minutes wall clock).
+S&P 500 universe (467 stocks with sufficient history), training period 2010-2019 (2,516 days), validation 2020 (253 days), test 2021-2022 (503 days). Population 200, 100 generations, 20x20 grid, 236 CPUs across 18 nodes.
 
 ### Convergence
 
 | Generation | Coverage | Best Sharpe | Mean Sharpe |
 |------------|----------|-------------|-------------|
-| 1 | 16 / 400 | 1.01 | 0.36 |
-| 10 | 40 / 400 | 1.13 | 0.56 |
-| 20 | 77 / 400 | 1.78 | 0.78 |
-| 35 | 93 / 400 | 2.04 | 0.93 |
-| 50 | 95 / 400 | 2.04 | 0.94 |
-| 75 | 107 / 400 | 2.04 | 0.97 |
-| 100 | 119 / 400 | 2.04 | 1.01 |
+| 10 | 56 / 400 | 1.41 | 0.66 |
+| 25 | 110 / 400 | 1.78 | 0.83 |
+| 50 | 167 / 400 | 2.10 | 1.04 |
+| 75 | 200 / 400 | 2.38 | 1.14 |
+| 100 | 221 / 400 | 2.65 | 1.29 |
 
-Coverage grows rapidly in early generations (77 cells by generation 20) and continues filling through generation 100. Best Sharpe reaches 2.04 at generation 35 and stabilizes. Mean Sharpe of archive elites improves steadily throughout the run.
+Coverage reaches 55% (221/400 cells) by generation 100 and is still growing. Best Sharpe improves throughout the run. Mean Sharpe of archive elites reaches 1.29.
 
-### Top 10 Alphas (by training Sharpe)
+### Out-of-Sample Performance
 
-| Train Sharpe | Val Sharpe | IC | Turnover | Mkt Corr | Expression |
-|--------|------|------|----------|----------|------------|
-| 2.04 | 3.37 | 0.015 | - | - | `div(add(vwap, high), close)` |
-| 2.00 | 3.06 | 0.008 | - | - | `ts_ema(div(vwap, close), 3)` |
-| 1.91 | 2.72 | 0.004 | - | - | `ts_ema(div(vwap, close), 5)` |
-| 1.85 | 3.08 | 0.011 | - | - | `div(high, close)` |
-| 1.78 | 3.50 | 0.015 | - | - | `div(vwap, close)` |
-| 1.72 | 2.83 | 0.002 | - | - | `ts_ema(div(vwap, close), 6)` |
-| 1.64 | 1.50 | 0.054 | - | - | `div(add(div(high, vwap), low), close)` |
-| 1.62 | 2.82 | -0.001 | - | - | `ts_ema(div(vwap, close), 7)` |
-| 1.56 | 2.29 | -0.005 | - | - | `ts_ema(div(vwap, close), 9)` |
-| 1.55 | 2.11 | -0.007 | - | - | `ts_ema(div(vwap, close), 10)` |
+All 20 top alphas maintain positive Sharpe and positive IC on the held-out 2021-2022 test set (rate hikes, inflation, tech selloff).
 
-All top alphas generalize to the validation period (2020). Validation Sharpe exceeds training Sharpe in most cases because 2020 had high cross-sectional dispersion. The dominant evolved pattern is `div(vwap, close)` and smoothed variants, a VWAP-relative signal that buys stocks trading below fair value.
+| Metric | Train (2010-2019) | Val (2020) | Test (2021-2022) |
+|--------|-------------------|------------|------------------|
+| Best individual Sharpe | 2.65 | 1.83 | **2.52** |
+| Combined top-5 Sharpe | 2.77 | 1.24 | **2.07** |
+| Combined top-10 Sharpe | 2.70 | 1.20 | **1.98** |
+| Combined top-20 Sharpe | 2.85 | 1.26 | **2.13** |
+| Mean IC (top 20) | 0.036 | 0.042 | **0.040** |
+| Mean ICIR (top 20) | 0.45 | 0.43 | **0.47** |
+| Pairwise corr (top 20) | 0.102 | 0.130 | 0.159 |
 
-### Summary Statistics
+Evaluated on AlphaSAGE's S&P 500 test period (2018-2020, 756 days) for direct comparison: combined top-20 Sharpe 1.61, mean IC 0.032, mean ICIR 0.37. All 20 alphas positive.
 
-- **Coverage:** 119 / 400 cells (29.8%)
-- **Best train Sharpe:** 2.04
-- **Mean train Sharpe:** 1.01
-- **Best val Sharpe:** 3.50
+### Comparison to Published Results
+
+| Method | Market | Test Period | Test Sharpe | Notes |
+|--------|--------|-------------|-------------|-------|
+| AlphaSAGE (2025) | S&P 500 | 2018-2020 | 6.32 | GFlowNet, easier period |
+| AlphaGen (KDD 2023) | S&P 500 | 2020-2021 | 3.96 | RL (PPO) |
+| FactorEngine (2026) | CSI300 | 2017-2024 | 1.01 | |
+| Qlib DoubleEnsemble | CSI300 | 2017-2020 | 0.46 | |
+| **MAGE combined top-20** | **S&P 500** | **2021-2022** | **2.13** | Hardest test period |
+| **MAGE best individual** | **S&P 500** | **2021-2022** | **2.52** | |
+| **MAGE combined top-20** | **S&P 500** | **2018-2020** | **1.61** | AlphaSAGE period |
+
+### Top 10 Alphas
+
+| Train | Test | IC | ICIR | Expression |
+|-------|------|-----|------|------------|
+| 2.65 | 2.05 | 0.036 | 0.39 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 32))), open)` |
+| 2.57 | 2.23 | 0.023 | 0.28 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
+| 2.56 | 2.12 | 0.026 | 0.37 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
+| 2.53 | 1.88 | 0.030 | 0.43 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
+| 2.51 | 1.93 | 0.031 | 0.50 | `div(pow(upper_shadow, cs_rank(ts_min(volume, 35))), open)` |
+| 2.51 | 2.02 | 0.013 | 0.27 | `div(mul(upper_shadow, div(greater(turnover_ratio, ...))), ...)` |
+| 2.50 | 2.05 | 0.037 | 0.41 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
+| 2.48 | 1.48 | 0.010 | 0.17 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
+| 2.47 | 2.52 | 0.032 | 0.41 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
+| 2.41 | 1.24 | 0.022 | 0.36 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 37))), open)` |
+
+The dominant signal family combines selling pressure (`upper_shadow`), liquidity ranking (`cs_rank(ts_min(dollar_volume, d))`), and price normalization (`div(..., open)`). Stocks with high selling pressure relative to their liquidity rank tend to revert. The diversity mechanisms ensure the archive also contains structurally different alphas using `turnover_ratio`, `body`, `ts_corr`, and other features in lower cells.
+
+### GP Baseline (10 independent runs)
+
+| Metric | Value |
+|--------|-------|
+| Best Sharpe (train) | 3.14 |
+| Mean Sharpe (train) | 2.90 |
+| Pairwise correlation | **0.094** |
+| Unique programs | 10 / 10 |
+
+With the expanded feature set (15 features, 33 operators), GP no longer collapses to one factor family. All 10 runs produce structurally different alphas with low pairwise correlation. The diversity contribution of MAP-Elites is less dramatic when the feature set itself enables diversity. MAP-Elites still provides the behavioral grid (turnover x market correlation), which organizes alphas by deployment-relevant axes that GP does not optimize for.
 
 ### Figures
 
@@ -195,14 +225,6 @@ All top alphas generalize to the validation period (2020). Validation Sharpe exc
 ![Sharpe Distribution](figures/sharpe_distribution.png)
 
 ![Turnover vs Sharpe](figures/turnover_vs_sharpe.png)
-
-> Figures from v1 run (33 operators, 15 features, no diversity gates). v2 run (with correlation gate, structural filter, novelty fitness) in progress.
-
-### Out-of-Sample Performance (v1)
-
-The v1 archive was dominated by one factor family (`div(vwap, close)` and smoothed variants). Test set (2021-2022) performance was weak: best individual Sharpe 1.15, combined top-10 Sharpe 0.49. Most ICs went negative. The 2021-2022 period (rate hikes, inflation) was a genuine regime break from the 2010-2019 training period.
-
-This motivated the v2 diversity mechanisms (correlation gate, structural filter, novelty fitness) and expanded feature set. The v2 local test (15 gens) showed 22 unique root operators across the archive vs v1's convergence to a single pattern. Full v2 cluster results pending.
 
 ---
 
