@@ -239,13 +239,23 @@ Gate 0.90 maximizes train Sharpe (3.24) and coverage (252 cells). Gate 0.70 maxi
 
 ### Figures
 
+![3D Archive Landscape](figures/archive_3d.png)
+
+The archive landscape shows 221 alphas spread across the turnover x market correlation grid. Height is Sharpe ratio. The stems make the performance gradient visible: high-turnover, low-correlation cells tend to have the strongest alphas.
+
+![Strict vs Loose Gate Comparison](figures/archive_3d_compare.png)
+
+Side-by-side 3D comparison. Gate=0.70 (strict, left) spreads alphas more evenly across the behavioral space. Gate=0.90 (loose, right) has more cells but they cluster in a denser region with more correlated signals. Color is IC.
+
 ![Train vs Test Sharpe](figures/train_vs_test.png)
 
-The per-alpha generalization plot shows gate=0.70 (blue) achieves better test-to-train ratios than gate=0.90 (red). Strict diversity gates improve out-of-sample performance.
+Gate=0.70 (blue) achieves better test-to-train ratios than gate=0.90 (red). Strict diversity gates improve out-of-sample performance.
+
+![IC, Turnover, Sharpe, Market Correlation](figures/3d_ic_sharpe_turnover.png)
+
+Four dimensions in one view: IC (x), turnover (y), Sharpe (z), market correlation (color). Shows the archive spans the full behavioral space with positive IC across most cells.
 
 ![Archive Composition](figures/archive_composition.png)
-
-![MAP-Elites Heatmap](figures/mapelites_heatmap.png)
 
 ![Train vs Test Heatmap](figures/heatmap_train_vs_test.png)
 
