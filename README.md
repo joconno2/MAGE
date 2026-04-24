@@ -422,13 +422,10 @@ Produces PNG figures in the `figures/` directory: MAP-Elites heatmap, convergenc
 
 ## Citation
 
-This is a working paper. If you use this code, cite:
-
 ```bibtex
 @article{oconnor2026mage,
   title     = {{MAGE}: {MAP}-Elites for Alpha Generation},
   author    = {O'Connor, Jim},
   year      = {2026},
-  note      = {Working paper. Target venue: IEEE CIFEr 2026 / ACM GECCO 2027},
 }
 ```
