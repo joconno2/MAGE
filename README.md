@@ -326,6 +326,7 @@ MAGE/
         run_cluster.py          # Distributed experiments on Ray cluster
         eval_test_set.py        # Evaluate saved archive on held-out test set
         run_qlib.py             # Qlib dataset integration (CSI300/CSI500)
+        run_csi.sh              # One-command CSI experiment runner (setup, run, eval)
         setup_qlib.py           # Qlib environment setup
     results/
         mage_full_v1/           # Full cluster run (pop=200, 100 gens, 236 CPUs)
@@ -408,7 +409,25 @@ python experiments/eval_test_set.py \
 
 Loads a saved MAP-Elites archive and evaluates the top alphas on the held-out test period (2021-2022). Also computes a combined alpha model (equal-weight average of top-N normalized alpha signals) and pairwise signal correlations.
 
-### 7. Generate figures
+### 7. Run CSI300/CSI500 experiments (Chinese equities)
+
+For direct comparison to AlphaGen (KDD 2023) and AlphaForge (AAAI 2025):
+
+```bash
+# One-time setup: install Qlib + download CSI data (~5GB)
+./experiments/run_csi.sh setup
+
+# Run full experiment suite (MAP-Elites + GP baseline + test eval)
+./experiments/run_csi.sh all --market csi300
+
+# Or run individually
+./experiments/run_csi.sh mapelites --market csi300 --pop 200 --gens 100
+./experiments/run_csi.sh gp --market csi500
+```
+
+Uses AlphaGen's exact data protocol: train 2009-2018, val 2019, test 2020-2021 on CSI300/CSI500 constituents via [Qlib](https://github.com/microsoft/qlib).
+
+### 8. Generate figures
 
 ```bash
 python scripts/generate_figures.py results/my_run/checkpoint.json
