@@ -1,0 +1,6 @@
+{
+  "algorithm": "gp_baseline_cluster",
+  "pop_size": 200,
+  "generations": 50,
+  "n_runs": 10
+}

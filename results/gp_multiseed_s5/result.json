@@ -1,0 +1,127 @@
+{
+  "runs": [
+    {
+      "sharpe": 2.3804837221669266,
+      "ic": 0.03410588151342104,
+      "rank_ic": 0.0198656425985306,
+      "icir": 0.48142425827986185,
+      "turnover": 0.148385345115137,
+      "market_corr": 0.02903815257838399,
+      "annual_return": 0.12240047307817048,
+      "max_drawdown": -0.0789491755788776,
+      "expression": "add(ts_var(pow(log_return, greater(ts_std(high, 29), upper_shadow)), 21), upper_shadow)",
+      "valid": true
+    },
+    {
+      "sharpe": 2.1930295389466052,
+      "ic": 0.05369324196372768,
+      "rank_ic": 0.04788409957108145,
+      "icir": 0.6643457605503849,
+      "turnover": 0.01545145534771598,
+      "market_corr": 0.006647980215726398,
+      "annual_return": 0.12584311317934516,
+      "max_drawdown": -0.04455095919041441,
+      "expression": "ts_var(cs_log(cs_rank(div(div(body, dollar_volume), dollar_volume))), 24)",
+      "valid": true
+    },
+    {
+      "sharpe": 3.153373870798151,
+      "ic": 0.006456493100453846,
+      "rank_ic": 0.0372103165398329,
+      "icir": 0.21015136302185491,
+      "turnover": 0.17478761999211898,
+      "market_corr": 0.021854386383465572,
+      "annual_return": 0.18419250240718443,
+      "max_drawdown": -0.04586330554395712,
+      "expression": "div(upper_shadow, add(mul(ts_min(dollar_volume, 40), ts_mad(vwap, 3)), greater(ts_ref(body, 5), ts_kurt(ts_cov(low, body, 12), 38))))",
+      "valid": true
+    },
+    {
+      "sharpe": 2.349841366723864,
+      "ic": 0.009542664720735712,
+      "rank_ic": 0.005538815570245621,
+      "icir": 0.15173822735174114,
+      "turnover": 0.2840763634107208,
+      "market_corr": 0.012253415828246012,
+      "annual_return": 0.12162270266826947,
+      "max_drawdown": -0.05414107048348171,
+      "expression": "greater(less(cs_sign(upper_shadow), less(cs_sign(ts_delta(volume, 9)), ts_argmin(intraday_range, 4))), less(ts_mean(low, 34), upper_shadow))",
+      "valid": true
+    },
+    {
+      "sharpe": 3.160269128048093,
+      "ic": 0.013701536887748255,
+      "rank_ic": 0.029170521830177983,
+      "icir": 0.20541233041800855,
+      "turnover": 0.23341713220897012,
+      "market_corr": 0.012941267961611361,
+      "annual_return": 0.18435402824599367,
+      "max_drawdown": -0.05271506422125016,
+      "expression": "div(div(div(upper_shadow, ts_ref(cs_rank(volume), 17)), vwap), intraday_range)",
+      "valid": true
+    },
+    {
+      "sharpe": 3.103676848367966,
+      "ic": 0.02381144746439757,
+      "rank_ic": 0.02306450770564161,
+      "icir": 0.30405824377231966,
+      "turnover": 0.2446082589059546,
+      "market_corr": 0.0013178004977368286,
+      "annual_return": 0.18215066623884502,
+      "max_drawdown": -0.0606372797137652,
+      "expression": "div(div(mul(pow(turnover_ratio, turnover_ratio), div(upper_shadow, intraday_range)), cs_rank(ts_wma(vwap, 3))), intraday_range)",
+      "valid": true
+    },
+    {
+      "sharpe": 3.2505100755034184,
+      "ic": 0.014231519810208825,
+      "rank_ic": 0.03251631115966552,
+      "icir": 0.17033129808627154,
+      "turnover": 0.20236040392322735,
+      "market_corr": 0.09283359186244444,
+      "annual_return": 0.16857569940091977,
+      "max_drawdown": -0.05866470188164774,
+      "expression": "mul(pow(ts_sum(ts_sum(volume, 16), 8), pow(cs_scale(volume), cs_abs(mul(vwap, intraday_range)))), div(upper_shadow, ts_sum(volume, 16)))",
+      "valid": true
+    },
+    {
+      "sharpe": 3.544792011173579,
+      "ic": 0.009779186718683585,
+      "rank_ic": 0.03177421974299864,
+      "icir": 0.25576584929266083,
+      "turnover": 0.17645389213900642,
+      "market_corr": 0.055606428877093605,
+      "annual_return": 0.189261022235369,
+      "max_drawdown": -0.04539743396286666,
+      "expression": "add(add(add(turnover_ratio, sub(low, close)), add(ts_std(turnover_ratio, 38), sub(low, cs_abs(open)))), add(ts_var(sub(low, cs_abs(open)), 60), sub(low, vwap)))",
+      "valid": true
+    },
+    {
+      "sharpe": 2.7058312347012548,
+      "ic": 0.02406791617230942,
+      "rank_ic": 0.030872841854262166,
+      "icir": 0.3174291567240953,
+      "turnover": 0.17029670534036187,
+      "market_corr": 0.031076888146741817,
+      "annual_return": 0.1611085053237875,
+      "max_drawdown": -0.04997181774192361,
+      "expression": "div(greater(greater(pow(lower_shadow, ts_corr(dollar_volume, open, 5)), ts_argmax(cs_scale(intraday_range), 25)), greater(greater(ts_argmin(intraday_range, 50), low), low)), close)",
+      "valid": true
+    },
+    {
+      "sharpe": 2.9004952078185093,
+      "ic": 0.006612167800143116,
+      "rank_ic": 0.023719350634194534,
+      "icir": 0.10269557757606851,
+      "turnover": 0.17432863397635087,
+      "market_corr": 0.019933810221234808,
+      "annual_return": 0.17785576501393785,
+      "max_drawdown": -0.05547924665459092,
+      "expression": "mul(sub(less(mul(add(returns, intraday_range), dollar_volume), upper_shadow), add(ts_wma(returns, 6), intraday_range)), cs_rank(open))",
+      "valid": true
+    }
+  ],
+  "mean_pairwise_corr": 0.030314721962911437,
+  "unique_programs": 10,
+  "best_sharpe": 3.544792011173579
+}

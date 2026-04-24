@@ -203,26 +203,53 @@ Evaluated on AlphaSAGE's S&P 500 test period (2018-2020, 756 days) for direct co
 
 The dominant signal family combines selling pressure (`upper_shadow`), liquidity ranking (`cs_rank(ts_min(dollar_volume, d))`), and price normalization (`div(..., open)`). Stocks with high selling pressure relative to their liquidity rank tend to revert. The diversity mechanisms ensure the archive also contains structurally different alphas using `turnover_ratio`, `body`, `ts_corr`, and other features in lower cells.
 
-### GP Baseline (10 independent runs)
+### GP Baseline (10 runs, 6 seeds)
 
-| Metric | Value |
-|--------|-------|
-| Best Sharpe (train) | 3.14 |
-| Mean Sharpe (train) | 2.90 |
-| Pairwise correlation | **0.094** |
-| Unique programs | 10 / 10 |
+| Seed | Best Sharpe | Pairwise Corr |
+|------|-------------|---------------|
+| 1 | 3.48 | 0.024 |
+| 2 | 3.45 | 0.012 |
+| 3 | 3.31 | 0.040 |
+| 4 | 3.26 | 0.162 |
+| 5 | 3.54 | 0.030 |
+| 42 | 3.14 | 0.094 |
 
-With the expanded feature set (15 features, 33 operators), GP finds diverse alphas on this run. With the original 6-feature set, GP collapsed to one factor family (pairwise corr 0.494, 8/10 runs converging to the same pattern). GP's diversity depends on the feature set and is not structurally guaranteed. MAGE's correlation gate and behavioral grid enforce diversity regardless, and the grid organizes alphas by deployment-relevant axes (turnover, market correlation) that GP does not optimize for.
+GP consistently achieves higher individual Sharpe (3.1-3.5) than MAGE (2.65) because each run spends all compute maximizing a single solution. GP also maintains low pairwise correlation (0.01-0.16) across all seeds with the expanded feature set. With the original 6-feature set, GP collapsed to one factor family (pairwise corr 0.494, 8/10 runs converging to `div(vwap, close)`).
+
+MAGE's contribution over GP is the behavioral grid. GP gives you 10 alphas with no control over their turnover or market correlation profiles. MAGE gives you 221 alphas indexed by deployment-relevant behavioral axes. A portfolio manager can select alphas matching specific turnover budgets and market exposure targets.
+
+### Correlation Gate Sweep
+
+The correlation gate controls the tradeoff between archive quality and diversity. Tighter gates reject more candidates, forcing diversity but limiting peak Sharpe. Looser gates allow higher Sharpe but more correlated archives.
+
+| Gate | Coverage | Best Train | Mean Train | Best Test | Mean Test (top 20) | Med Corr |
+|------|----------|-----------|-----------|----------|-------------------|----------|
+| 0.70 | 221 | 2.65 | 1.29 | **2.52** | **1.88** | 0.56 |
+| 0.75 | 102* | 1.89* | 0.95* | - | - | 0.39 |
+| 0.80 | 179* | 2.89* | 1.18* | - | - | 0.63 |
+| 0.85 | 165* | 2.49* | 1.04* | - | - | 0.63 |
+| 0.90 | 252 | **3.24** | **1.65** | 2.18 | 1.59 | 0.80 |
+| 0.95 | 216 | 2.32 | 1.03 | - | - | 0.78 |
+
+*not fully converged (fewer generations on cluster)
+
+Gate 0.90 maximizes train Sharpe (3.24) and coverage (252 cells). Gate 0.70 maximizes test Sharpe (2.52 best, 1.88 mean top-20). Stricter gates produce archives that generalize better because the forced diversity prevents overfitting to one factor family.
+
+![Gate Sweep](figures/gate_sweep.png)
 
 ### Figures
 
+![Train vs Test Sharpe](figures/train_vs_test.png)
+
+The per-alpha generalization plot shows gate=0.70 (blue) achieves better test-to-train ratios than gate=0.90 (red). Strict diversity gates improve out-of-sample performance.
+
+![Archive Composition](figures/archive_composition.png)
+
 ![MAP-Elites Heatmap](figures/mapelites_heatmap.png)
 
+![Train vs Test Heatmap](figures/heatmap_train_vs_test.png)
+
 ![Convergence](figures/convergence.png)
-
-![IC Distribution](figures/ic_distribution.png)
-
-![Sharpe Distribution](figures/sharpe_distribution.png)
 
 ![Turnover vs Sharpe](figures/turnover_vs_sharpe.png)
 

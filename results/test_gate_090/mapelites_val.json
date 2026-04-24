@@ -1,0 +1,182 @@
+[
+  {
+    "rank": 1,
+    "train_sharpe": 3.240261227905204,
+    "val_sharpe": 2.6287593990033575,
+    "val_ic": 0.021273198420720056,
+    "val_icir": 0.3380771996641058,
+    "turnover": 0.22017975408241405,
+    "expression": "div(div(div(cs_rank(upper_shadow), intraday_range), vwap), cs_abs(cs_rank(ts_min"
+  },
+  {
+    "rank": 2,
+    "train_sharpe": 3.1616767686391736,
+    "val_sharpe": 3.1280672612109073,
+    "val_ic": 0.03523680418191871,
+    "val_icir": 0.5306276952596127,
+    "turnover": 0.23290254431477198,
+    "expression": "div(div(div(div(upper_shadow, high), div(cs_rank(high), vwap)), intraday_range),"
+  },
+  {
+    "rank": 3,
+    "train_sharpe": 3.1128754401633287,
+    "val_sharpe": 2.988225788251529,
+    "val_ic": 0.027418959032479977,
+    "val_icir": 0.4574944829742794,
+    "turnover": 0.23776624513638867,
+    "expression": "div(div(div(upper_shadow, intraday_range), vwap), cs_rank(ts_min(cs_rank(ts_min("
+  },
+  {
+    "rank": 4,
+    "train_sharpe": 3.1030167110219193,
+    "val_sharpe": 1.9742313227603765,
+    "val_ic": 0.03505010949169354,
+    "val_icir": 0.6468843181076499,
+    "turnover": 0.17470202274859664,
+    "expression": "div(div(div(cs_rank(upper_shadow), ts_min(cs_rank(high), 43)), intraday_range), "
+  },
+  {
+    "rank": 5,
+    "train_sharpe": 3.102775734469365,
+    "val_sharpe": 2.0844297585923792,
+    "val_ic": 0.023503975125095382,
+    "val_icir": 0.31478634554494267,
+    "turnover": 0.20938065680245893,
+    "expression": "div(div(div(cs_rank(upper_shadow), intraday_range), vwap), ts_max(cs_rank(ts_min"
+  },
+  {
+    "rank": 6,
+    "train_sharpe": 3.0401868448746763,
+    "val_sharpe": 1.6071945543909627,
+    "val_ic": 0.016212886114202137,
+    "val_icir": 0.2740313871695132,
+    "turnover": 0.14654711586297725,
+    "expression": "div(div(div(cs_rank(upper_shadow), ts_min(cs_rank(open), 43)), intraday_range), "
+  },
+  {
+    "rank": 7,
+    "train_sharpe": 3.0218533754475816,
+    "val_sharpe": 1.7559210705588912,
+    "val_ic": 0.04020686235985251,
+    "val_icir": 0.5158887665556017,
+    "turnover": 0.13483486277852513,
+    "expression": "pow(div(div(div(upper_shadow, high), cs_rank(high)), intraday_range), cs_rank(ts"
+  },
+  {
+    "rank": 8,
+    "train_sharpe": 3.0058388457669594,
+    "val_sharpe": 1.3482851885617255,
+    "val_ic": 0.023977331078682797,
+    "val_icir": 0.3853188578887338,
+    "turnover": 0.11783432335314088,
+    "expression": "div(div(div(cs_rank(upper_shadow), intraday_range), close), ts_max(ts_min(cs_ran"
+  },
+  {
+    "rank": 9,
+    "train_sharpe": 2.958315818994985,
+    "val_sharpe": 2.33127384325558,
+    "val_ic": 0.005227132906623881,
+    "val_icir": 0.13168229416211516,
+    "turnover": 0.16268785887904988,
+    "expression": "div(div(div(upper_shadow, ts_min(cs_rank(open), 44)), intraday_range), ts_decay_"
+  },
+  {
+    "rank": 10,
+    "train_sharpe": 2.940160705265826,
+    "val_sharpe": 1.3407186807847347,
+    "val_ic": 0.026739022807154466,
+    "val_icir": 0.43246822186092,
+    "turnover": 0.12340706195764545,
+    "expression": "div(div(div(div(cs_rank(upper_shadow), intraday_range), add(low, turnover_ratio)"
+  },
+  {
+    "rank": 11,
+    "train_sharpe": 2.9155067147059066,
+    "val_sharpe": 1.9757918029739554,
+    "val_ic": 0.03406771492403595,
+    "val_icir": 0.4343462217881592,
+    "turnover": 0.17722561983654386,
+    "expression": "div(div(div(div(upper_shadow, high), greater(cs_rank(high), vwap)), intraday_ran"
+  },
+  {
+    "rank": 12,
+    "train_sharpe": 2.9150668670651396,
+    "val_sharpe": 1.72558322123521,
+    "val_ic": 0.022551873351554532,
+    "val_icir": 0.3495065263238224,
+    "turnover": 0.13600014753881717,
+    "expression": "div(div(div(upper_shadow, ts_min(cs_rank(dollar_volume), 49)), intraday_range), "
+  },
+  {
+    "rank": 13,
+    "train_sharpe": 2.8797750447209003,
+    "val_sharpe": 2.1937229669850473,
+    "val_ic": 0.029213893977212534,
+    "val_icir": 0.4701197076895985,
+    "turnover": 0.15090122819983398,
+    "expression": "div(div(div(upper_shadow, ts_min(cs_rank(lower_shadow), 42)), cs_rank(open)), cs"
+  },
+  {
+    "rank": 14,
+    "train_sharpe": 2.8719400965867363,
+    "val_sharpe": 1.0572647756305802,
+    "val_ic": 0.02911918761705974,
+    "val_icir": 0.5268181073869622,
+    "turnover": 0.10729581597230047,
+    "expression": "div(div(div(upper_shadow, ts_min(cs_rank(open), 44)), intraday_range), ts_max(ts"
+  },
+  {
+    "rank": 15,
+    "train_sharpe": 2.8603549892024733,
+    "val_sharpe": 1.0050553925315697,
+    "val_ic": 0.004874192321576826,
+    "val_icir": 0.10051030912783461,
+    "turnover": 0.10146173617984512,
+    "expression": "div(div(div(upper_shadow, ts_min(cs_rank(low), 42)), intraday_range), ts_min(ts_"
+  },
+  {
+    "rank": 16,
+    "train_sharpe": 2.8555710312065243,
+    "val_sharpe": 2.0535231183804217,
+    "val_ic": 0.025610190872554343,
+    "val_icir": 0.36996044164229613,
+    "turnover": 0.18255851842407075,
+    "expression": "div(div(div(div(upper_shadow, high), cs_rank(high)), intraday_range), cs_rank(ts"
+  },
+  {
+    "rank": 17,
+    "train_sharpe": 2.841986562668726,
+    "val_sharpe": 0.5706359119851133,
+    "val_ic": 0.03475520902523735,
+    "val_icir": 0.5432860860362604,
+    "turnover": 0.07820097520152965,
+    "expression": "div(div(div(ts_wma(upper_shadow, 28), intraday_range), close), ts_max(ts_min(cs_"
+  },
+  {
+    "rank": 18,
+    "train_sharpe": 2.8389718038861544,
+    "val_sharpe": 1.4249429913306115,
+    "val_ic": 0.013658830062257689,
+    "val_icir": 0.2746887977886592,
+    "turnover": 0.13075409436316573,
+    "expression": "div(div(div(upper_shadow, ts_min(cs_rank(low), 40)), intraday_range), ts_decay_l"
+  },
+  {
+    "rank": 19,
+    "train_sharpe": 2.8278972467162014,
+    "val_sharpe": 0.9774254702698101,
+    "val_ic": 0.017652606897245723,
+    "val_icir": 0.347595048729067,
+    "turnover": 0.10197153931855814,
+    "expression": "div(div(div(upper_shadow, ts_min(cs_rank(low), 44)), intraday_range), ts_decay_l"
+  },
+  {
+    "rank": 20,
+    "train_sharpe": 2.8245500004089865,
+    "val_sharpe": 0.5054642161422302,
+    "val_ic": 0.04423220293674053,
+    "val_icir": 0.5948393011164688,
+    "turnover": 0.09232323765705783,
+    "expression": "div(div(div(ts_wma(upper_shadow, 25), intraday_range), vwap), ts_max(cs_rank(ts_"
+  }
+]

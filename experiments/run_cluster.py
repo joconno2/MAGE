@@ -179,7 +179,7 @@ def run_mapelites(args):
     init_results = _eval_batch(population, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days, _reconnect)
     print(f"Init eval: {time.monotonic()-t0:.0f}s")
 
-    corr_threshold = 0.7
+    corr_threshold = getattr(args, "corr_threshold", 0.7)
     archive_signals = {}  # cell -> flattened normalized signal
 
     def try_insert(tree, r):
@@ -311,6 +311,24 @@ def run_gp(args):
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    def _reconnect_gp():
+        nonlocal stock_ref, close_ref, fwd1d_ref, fwd20d_ref, eval_fn
+        try:
+            ray.shutdown()
+        except Exception:
+            pass
+        if args.auto_cluster:
+            from aall_cluster import connect
+            connect(namespace="mage-gp", verbose=True)
+        else:
+            ray.init(args.ray_address, namespace="mage-gp")
+        eval_fn = _make_eval_fn()
+        stock_ref = ray.put(train["stock_data"])
+        close_ref = ray.put(train["close_prices"])
+        fwd1d_ref = ray.put(train["fwd_returns_1d"])
+        fwd20d_ref = ray.put(train["fwd_returns_20d"])
+        return stock_ref, close_ref, fwd1d_ref, fwd20d_ref, eval_fn
+
     all_results = []
     all_signals = []
 
@@ -325,7 +343,7 @@ def run_gp(args):
         rng = random.Random(args.seed + run)
 
         pop = [random_tree(max_depth=4, rng=rng) for _ in range(args.pop)]
-        results = _eval_batch(pop, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days)
+        results = _eval_batch(pop, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days, _reconnect_gp)
         pop_fitness = [r["sharpe"] if r["valid"] else -999 for r in results]
 
         for gen in range(args.gens):
@@ -342,7 +360,7 @@ def run_gp(args):
                     p2 = pop[max(c2, key=lambda i: pop_fitness[i])]
                     children.append(crossover(p1, p2, rng=rng))
 
-            results = _eval_batch(children, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days)
+            results = _eval_batch(children, eval_fn, stock_ref, close_ref, fwd1d_ref, fwd20d_ref, n_days, _reconnect_gp)
             pop = children
             pop_fitness = [r["sharpe"] if r["valid"] else -999 for r in results]
 
@@ -447,6 +465,7 @@ def main():
     me_p.add_argument("--gens", type=int, default=100)
     me_p.add_argument("--grid-size", type=int, default=20)
     me_p.add_argument("--tournament", type=int, default=7)
+    me_p.add_argument("--corr-threshold", type=float, default=0.7)
 
     gp_p = sub.add_parser("gp")
     _shared(gp_p)
