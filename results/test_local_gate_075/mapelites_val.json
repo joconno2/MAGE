@@ -1,0 +1,182 @@
+[
+  {
+    "rank": 1,
+    "train_sharpe": 1.891881723031836,
+    "val_sharpe": 3.5512442586279764,
+    "val_ic": 0.05599755456720035,
+    "val_icir": 0.7420922319445602,
+    "turnover": 0.11447273511995545,
+    "expression": "pow(upper_shadow, cs_rank(greater(log_return, ts_ref(ts_product(low, 2), 6))))"
+  },
+  {
+    "rank": 2,
+    "train_sharpe": 1.8722004880613976,
+    "val_sharpe": 1.4235487946045002,
+    "val_ic": 0.055238803795239134,
+    "val_icir": 0.2836244318034433,
+    "turnover": 0.10871090427056185,
+    "expression": "pow(upper_shadow, cs_rank(greater(log_return, open)))"
+  },
+  {
+    "rank": 3,
+    "train_sharpe": 1.8477226892467864,
+    "val_sharpe": 0.6709678320554041,
+    "val_ic": 0.05048642306039161,
+    "val_icir": 0.4700330902305114,
+    "turnover": 0.008189781713386458,
+    "expression": "ts_var(div(div(sub(log_return, upper_shadow), div(upper_shadow, dollar_volume)),"
+  },
+  {
+    "rank": 4,
+    "train_sharpe": 1.8388106485698599,
+    "val_sharpe": 0.061308726807010896,
+    "val_ic": 0.004934248476301498,
+    "val_icir": 0.10848917762728812,
+    "turnover": 0.00679603359563331,
+    "expression": "ts_var(div(div(div(upper_shadow, dollar_volume), div(upper_shadow, dollar_volume"
+  },
+  {
+    "rank": 5,
+    "train_sharpe": 1.8115230904907265,
+    "val_sharpe": 0.6722072496175577,
+    "val_ic": 0.025432481780638224,
+    "val_icir": 0.39849367571875594,
+    "turnover": 0.005106903750526885,
+    "expression": "ts_var(div(div(turnover_ratio, div(upper_shadow, dollar_volume)), dollar_volume)"
+  },
+  {
+    "rank": 6,
+    "train_sharpe": 1.6352868374685543,
+    "val_sharpe": 2.0250132292240988,
+    "val_ic": 0.025080355519465563,
+    "val_icir": 0.28083586592452353,
+    "turnover": 0.13495549830019113,
+    "expression": "div(ts_product(ts_max(cs_rank(returns), 8), 10), div(upper_shadow, dollar_volume"
+  },
+  {
+    "rank": 7,
+    "train_sharpe": 1.600262474569732,
+    "val_sharpe": 2.360800670901911,
+    "val_ic": 0.029712620011949176,
+    "val_icir": 0.33046681327145677,
+    "turnover": 0.1323693295849029,
+    "expression": "div(div(upper_shadow, dollar_volume), div(upper_shadow, dollar_volume))"
+  },
+  {
+    "rank": 8,
+    "train_sharpe": 1.590230989346399,
+    "val_sharpe": 1.8244432677238727,
+    "val_ic": -0.017319887630030607,
+    "val_icir": -0.33269010853980885,
+    "turnover": 0.176177053163273,
+    "expression": "less(upper_shadow, ts_skew(ts_kurt(ts_product(upper_shadow, 2), 21), 14))"
+  },
+  {
+    "rank": 9,
+    "train_sharpe": 1.5661868066656133,
+    "val_sharpe": -0.038733149410857697,
+    "val_ic": 0.00808767349117289,
+    "val_icir": 0.16190808778729432,
+    "turnover": 0.01272842489862788,
+    "expression": "ts_var(div(ts_var(ts_kurt(low, 13), 41), ts_cov(vwap, dollar_volume, 19)), 40)"
+  },
+  {
+    "rank": 10,
+    "train_sharpe": 1.5636784170920517,
+    "val_sharpe": 0.7763796305674169,
+    "val_ic": 0.025886657303736214,
+    "val_icir": 0.45387867580613517,
+    "turnover": 0.00827637669564996,
+    "expression": "ts_var(div(upper_shadow, cs_rank(sub(dollar_volume, open))), 41)"
+  },
+  {
+    "rank": 11,
+    "train_sharpe": 1.5635433418367355,
+    "val_sharpe": 1.088085235178691,
+    "val_ic": 0.01517906149288555,
+    "val_icir": 0.11892429265542181,
+    "turnover": 0.2966714040794126,
+    "expression": "pow(upper_shadow, greater(ts_mad(upper_shadow, 3), mul(open, gap)))"
+  },
+  {
+    "rank": 12,
+    "train_sharpe": 1.5577705783287656,
+    "val_sharpe": 1.0034914888813293,
+    "val_ic": -0.008348128657706438,
+    "val_icir": -0.16576456518838636,
+    "turnover": 0.028153243317482566,
+    "expression": "ts_max(div(div(body, div(upper_shadow, dollar_volume)), ts_cov(upper_shadow, int"
+  },
+  {
+    "rank": 13,
+    "train_sharpe": 1.551467529574281,
+    "val_sharpe": 0.11933284745731447,
+    "val_ic": 0.01572653796045447,
+    "val_icir": 0.3666910151092115,
+    "turnover": 0.012399843359855259,
+    "expression": "ts_var(div(upper_shadow, ts_cov(upper_shadow, dollar_volume, 14)), 40)"
+  },
+  {
+    "rank": 14,
+    "train_sharpe": 1.5395593503890677,
+    "val_sharpe": 2.2565623869455758,
+    "val_ic": -0.0031835910486488314,
+    "val_icir": -0.04189135740014021,
+    "turnover": 0.13441646644819188,
+    "expression": "div(ts_product(ts_max(ts_skew(returns, 43), 8), 10), div(upper_shadow, dollar_vo"
+  },
+  {
+    "rank": 15,
+    "train_sharpe": 1.5315592839304426,
+    "val_sharpe": 0.4633814462671622,
+    "val_ic": 0.03290729648389922,
+    "val_icir": 0.3119625696446713,
+    "turnover": 0.01870843360356119,
+    "expression": "ts_std(div(returns, dollar_volume), 11)"
+  },
+  {
+    "rank": 16,
+    "train_sharpe": 1.5269228769446859,
+    "val_sharpe": 0.46252211936455406,
+    "val_ic": 0.05408550047278102,
+    "val_icir": 0.34074138120514047,
+    "turnover": 0.06257037519292918,
+    "expression": "div(turnover_ratio, close)"
+  },
+  {
+    "rank": 17,
+    "train_sharpe": 1.505319028481807,
+    "val_sharpe": 0.545451469727632,
+    "val_ic": 0.056564743196936544,
+    "val_icir": 0.46729347873353605,
+    "turnover": 0.0009555678480719386,
+    "expression": "ts_kurt(ts_product(close, 2), 9)"
+  },
+  {
+    "rank": 18,
+    "train_sharpe": 1.4975697158925487,
+    "val_sharpe": 3.0428944817175787,
+    "val_ic": -0.0017936662515406778,
+    "val_icir": -0.030473283208424958,
+    "turnover": 0.31389511206474713,
+    "expression": "pow(upper_shadow, high)"
+  },
+  {
+    "rank": 19,
+    "train_sharpe": 1.4963350355061062,
+    "val_sharpe": 0.16300690615816968,
+    "val_ic": -0.0019093914475552265,
+    "val_icir": -0.04031499142334982,
+    "turnover": 0.012594069411790212,
+    "expression": "ts_var(div(div(mul(log_return, sub(body, turnover_ratio)), div(sub(dollar_volume"
+  },
+  {
+    "rank": 20,
+    "train_sharpe": 1.4679251509476967,
+    "val_sharpe": 3.076580259580644,
+    "val_ic": -0.0022017615944451476,
+    "val_icir": -0.0373427995772401,
+    "turnover": 0.31271435433199946,
+    "expression": "pow(upper_shadow, add(ts_mad(upper_shadow, 3), mul(open, less(vwap, vwap))))"
+  }
+]

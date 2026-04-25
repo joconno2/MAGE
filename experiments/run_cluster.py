@@ -137,11 +137,12 @@ def run_mapelites(args):
             ray.shutdown()
         except Exception:
             pass
-        if args.auto_cluster:
+        if getattr(args, "auto_cluster", False):
             from aall_cluster import connect
             connect(namespace="mage", verbose=True)
         else:
-            ray.init(args.ray_address, namespace="mage")
+            from aall_cluster import connect
+            connect(namespace="mage", verbose=True)
         eval_fn = _make_eval_fn()
         stock_ref = ray.put(train["stock_data"])
         close_ref = ray.put(train["close_prices"])
@@ -317,11 +318,12 @@ def run_gp(args):
             ray.shutdown()
         except Exception:
             pass
-        if args.auto_cluster:
+        if getattr(args, "auto_cluster", False):
             from aall_cluster import connect
             connect(namespace="mage-gp", verbose=True)
         else:
-            ray.init(args.ray_address, namespace="mage-gp")
+            from aall_cluster import connect
+            connect(namespace="mage-gp", verbose=True)
         eval_fn = _make_eval_fn()
         stock_ref = ray.put(train["stock_data"])
         close_ref = ray.put(train["close_prices"])

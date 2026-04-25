@@ -1,0 +1,182 @@
+[
+  {
+    "rank": 1,
+    "train_sharpe": 2.116308896190044,
+    "val_sharpe": 2.1326453648718577,
+    "val_ic": 0.04415749048588212,
+    "val_icir": 0.5003074954025641,
+    "turnover": 0.19731150574524886,
+    "expression": "less(mul(close, less(high, ts_med(vwap, 29))), div(upper_shadow, dollar_volume))"
+  },
+  {
+    "rank": 2,
+    "train_sharpe": 1.9497427193766397,
+    "val_sharpe": 1.8905028175163296,
+    "val_ic": 0.06613299057904973,
+    "val_icir": 0.514635278105116,
+    "turnover": 0.214004607046245,
+    "expression": "less(mul(close, less(high, upper_shadow)), div(upper_shadow, add(low, returns)))"
+  },
+  {
+    "rank": 3,
+    "train_sharpe": 1.8287095951417696,
+    "val_sharpe": 0.7326322597563902,
+    "val_ic": -0.018770273982029382,
+    "val_icir": -0.20060344085552323,
+    "turnover": 0.046256889408065244,
+    "expression": "less(mul(close, sub(lower_shadow, dollar_volume)), div(upper_shadow, add(low, re"
+  },
+  {
+    "rank": 4,
+    "train_sharpe": 1.8083071957887087,
+    "val_sharpe": 0.7552107223367762,
+    "val_ic": 0.017449487124684908,
+    "val_icir": 0.37482236306915334,
+    "turnover": 0.010356838585164277,
+    "expression": "ts_ema(less(mul(close, less(sub(volume, upper_shadow), intraday_range)), div(upp"
+  },
+  {
+    "rank": 5,
+    "train_sharpe": 1.7687487919775184,
+    "val_sharpe": 1.7457533282604532,
+    "val_ic": -0.02916825599876657,
+    "val_icir": -0.2435427916185453,
+    "turnover": 0.17455392940875789,
+    "expression": "less(mul(upper_shadow, ts_skew(volume, 52)), div(upper_shadow, dollar_volume))"
+  },
+  {
+    "rank": 6,
+    "train_sharpe": 1.765599834684416,
+    "val_sharpe": 2.362853206155165,
+    "val_ic": -0.003494251828648469,
+    "val_icir": -0.04552893973581107,
+    "turnover": 0.17201061993278044,
+    "expression": "add(ts_argmin(ts_decay_linear(mul(ts_mad(body, 34), ts_kurt(turnover_ratio, 54))"
+  },
+  {
+    "rank": 7,
+    "train_sharpe": 1.762110134949287,
+    "val_sharpe": 0.1787835807449695,
+    "val_ic": 0.036584512135264396,
+    "val_icir": 0.47812315972194813,
+    "turnover": 0.005124845243443699,
+    "expression": "ts_ema(less(mul(close, upper_shadow), div(ts_mean(turnover_ratio, 56), dollar_vo"
+  },
+  {
+    "rank": 8,
+    "train_sharpe": 1.7505236296875786,
+    "val_sharpe": 1.318199974697849,
+    "val_ic": 0.0018982545093476255,
+    "val_icir": 0.026048789554243994,
+    "turnover": 0.29843035012277846,
+    "expression": "add(ts_argmin(cs_abs(body), 4), less(turnover_ratio, upper_shadow))"
+  },
+  {
+    "rank": 9,
+    "train_sharpe": 1.7026577291467488,
+    "val_sharpe": 0.29276891087946233,
+    "val_ic": 0.04317486475474836,
+    "val_icir": 0.5602926336397229,
+    "turnover": 0.008341166413840086,
+    "expression": "less(mul(close, less(high, ts_med(vwap, 33))), div(turnover_ratio, dollar_volume"
+  },
+  {
+    "rank": 10,
+    "train_sharpe": 1.6789241635361147,
+    "val_sharpe": 0.1177118622654731,
+    "val_ic": 0.04487078291195404,
+    "val_icir": 0.5992223796172043,
+    "turnover": 0.00649986480378518,
+    "expression": "ts_max(div(turnover_ratio, dollar_volume), 7)"
+  },
+  {
+    "rank": 11,
+    "train_sharpe": 1.6665431236882058,
+    "val_sharpe": 1.2311120994034308,
+    "val_ic": 0.07404165721959996,
+    "val_icir": 0.4381835910480097,
+    "turnover": 0.2191966210891928,
+    "expression": "less(mul(close, less(ts_argmax(upper_shadow, 18), upper_shadow)), div(upper_shad"
+  },
+  {
+    "rank": 12,
+    "train_sharpe": 1.5890887370218527,
+    "val_sharpe": 0.6310957238791445,
+    "val_ic": 0.03635373058872626,
+    "val_icir": 0.45946531655728523,
+    "turnover": 0.021466575910975276,
+    "expression": "mul(div(ts_skew(volume, 48), add(ts_decay_linear(returns, 9), mul(ts_std(returns"
+  },
+  {
+    "rank": 13,
+    "train_sharpe": 1.5689241892417236,
+    "val_sharpe": 0.8271993797298375,
+    "val_ic": 0.04143346194849684,
+    "val_icir": 0.34854876091542863,
+    "turnover": 0.08845903719258962,
+    "expression": "mul(div(ts_skew(volume, 52), add(ts_decay_linear(turnover_ratio, 14), mul(open, "
+  },
+  {
+    "rank": 14,
+    "train_sharpe": 1.5657200221625085,
+    "val_sharpe": -0.47770342276720545,
+    "val_ic": 0.03187832534134421,
+    "val_icir": 0.4351864904282939,
+    "turnover": 0.10229994197903647,
+    "expression": "mul(div(ts_skew(volume, 52), add(ts_decay_linear(gap, 9), mul(volume, high))), c"
+  },
+  {
+    "rank": 15,
+    "train_sharpe": 1.5427089345363345,
+    "val_sharpe": 0.6684859444989636,
+    "val_ic": -0.001975740681036143,
+    "val_icir": -0.049806741077261574,
+    "turnover": 0.029371637043347863,
+    "expression": "add(ts_mean(less(turnover_ratio, mul(pow(returns, gap), div(returns, dollar_volu"
+  },
+  {
+    "rank": 16,
+    "train_sharpe": 1.5143297440693801,
+    "val_sharpe": 0.0,
+    "val_ic": 0.0,
+    "val_icir": 0.0,
+    "turnover": 0.0,
+    "expression": "mul(div(ts_skew(volume, 52), add(ts_decay_linear(gap, 9), mul(volume, high))), c"
+  },
+  {
+    "rank": 17,
+    "train_sharpe": 1.4704986286081063,
+    "val_sharpe": 0.02544402758242023,
+    "val_ic": -0.0021764868798534774,
+    "val_icir": -0.025197636035319944,
+    "turnover": 0.2623146257404578,
+    "expression": "less(mul(close, sub(lower_shadow, gap)), div(upper_shadow, add(open, ts_cov(intr"
+  },
+  {
+    "rank": 18,
+    "train_sharpe": 1.4604300694042482,
+    "val_sharpe": 1.685531840261926,
+    "val_ic": 0.004936521056093878,
+    "val_icir": 0.032309404129374705,
+    "turnover": 0.24993376136762618,
+    "expression": "add(ts_argmin(high, 4), less(close, upper_shadow))"
+  },
+  {
+    "rank": 19,
+    "train_sharpe": 1.4571298129759926,
+    "val_sharpe": 0.0,
+    "val_ic": 0.0,
+    "val_icir": 0.0,
+    "turnover": 0.0,
+    "expression": "mul(div(add(ts_std(intraday_range, 56), lower_shadow), add(ts_decay_linear(gap, "
+  },
+  {
+    "rank": 20,
+    "train_sharpe": 1.4372681330623274,
+    "val_sharpe": 0.4213445697451772,
+    "val_ic": 0.025220543348295245,
+    "val_icir": 0.3157977377929029,
+    "turnover": 0.01081950729333314,
+    "expression": "ts_wma(ts_kurt(ts_delta(ts_delta(high, 2), 13), 21), 60)"
+  }
+]
