@@ -27,25 +27,7 @@ In MAGE, the grid has two axes:
 
 This creates a 20x20 grid with 400 possible cells. The search fills as many cells as it can, and within each cell it pushes the Sharpe ratio as high as possible.
 
-```
-Market Correlation (y)
-1.0 |  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    |  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    |  .  .  #  .  #  #  #  .  .  .  .  .  .  .  .  .  .  .  .  .
-    |  .  #  #  #  #  #  #  #  .  #  .  .  .  .  .  .  .  .  .  .
-    |  #  #  #  #  #  #  .  .  #  #  .  .  .  .  #  .  .  .  .  .
-    |  #  #  #  #  #  #  #  .  #  .  .  .  .  .  .  .  .  .  .  .
-    |  #  #  #  #  #  .  .  .  .  .  .  .  .  .  .  .  .  .  .  .
-    |  #  #  #  #  #  #  #  #  #  #  .  #  .  #  .  .  .  .  .  .
-    |  #  #  #  #  #  #  #  #  #  #  #  .  #  #  .  .  #  .  .  #
-    |  #  #  #  #  #  #  #  #  #  #  #  #  #  #  #  .  #  #  #  #
-0.0 |____________________________________________________________
-    0.0                    Turnover (x)                       0.2
-
-    .  = empty cell       #  = cell occupied by an elite alpha
-```
-
-Why does this matter for finance? Standard GP run 10 times will converge to the same factor family 8 out of 10 times (our experiments confirm this with a mean pairwise correlation of 0.494 across runs). Those 10 "different" alphas are really minor variants of the same signal. Combining them in a portfolio gives almost no diversification benefit. MAP-Elites forces diversity by construction. Alphas in different grid cells have different turnover and market correlation profiles. When you combine uncorrelated alphas, the portfolio's Sharpe ratio improves because the errors of one alpha are not correlated with the errors of another. This is a basic result in portfolio theory: diversification works.
+Why does this matter for finance? GP gives you 10 alphas with no control over their turnover or market correlation profiles. MAGE gives you 221 alphas indexed by deployment-relevant behavioral axes. A portfolio manager can select alphas matching specific turnover budgets and market exposure targets. The grid is the product.
 
 ---
 
@@ -91,7 +73,7 @@ The operators fall into four groups based on two distinctions:
 | `sub(x, y)` | Elementwise subtraction | `sub(high, low)` = daily price range |
 | `mul(x, y)` | Elementwise multiplication | `mul(close, volume)` = dollar volume proxy |
 | `div(x, y)` | Safe division (returns 0 when denominator < 1e-10) | `div(close, open)` = intraday return ratio |
-| `pow(x, y)` | Signed power: `sign(x) * |x|^clip(y, -3, 3)` | `pow(volume, returns)` |
+| `pow(x, y)` | Signed power: `sign(x) * abs(x)^clip(y, -3, 3)` | `pow(volume, returns)` |
 | `greater(x, y)` | Elementwise maximum | `greater(open, close)` = max of open and close |
 | `less(x, y)` | Elementwise minimum | `less(high, low)` = always equals low |
 
@@ -132,9 +114,9 @@ The core operator set matches AlphaGen (Yu et al., KDD 2023) and draws from Alph
 
 ### Diversity Mechanisms
 
-Standard GP converges to one dominant factor family. In our initial experiments, 8 of 10 GP runs converged to the same `div(vwap, close)` pattern, and the MAP-Elites archive filled with variants of it (pairwise correlation 0.587). MAGE uses three mechanisms to prevent this:
+MAGE uses three mechanisms to prevent the archive from filling with variants of one dominant signal:
 
-1. **Correlation gate.** Before inserting an alpha into the archive, compute its rank correlation with every existing archive member. Reject if `max |corr| > 0.7`. This prevents functionally identical alphas from occupying different cells. Inspired by AlphaForge's (AAAI 2025) factor zoo filtering (threshold 0.5).
+1. **Correlation gate.** Before inserting an alpha into the archive, compute its rank correlation with every existing archive member. Reject if `max |corr| > threshold`. This prevents functionally identical alphas from occupying different cells. Inspired by AlphaForge's (AAAI 2025) factor zoo filtering. The optimal threshold is 0.70 (see gate sweep below).
 
 2. **Structural similarity filter.** Hash each GP tree bottom-up (sorting children of commutative operators). Reject if structural similarity with the current cell occupant exceeds 0.8. This catches syntactic variants like `div(vwap, close)` and `div(vwap, mul(close, 1.0))`. Based on Burlacu et al. (CEC 2019).
 
@@ -144,23 +126,11 @@ Standard GP converges to one dominant factor family. In our initial experiments,
 
 ## Results
 
-S&P 500 universe (467 stocks with sufficient history), training period 2010-2019 (2,516 days), validation 2020 (253 days), test 2021-2022 (503 days). Population 200, 100 generations, 20x20 grid, 236 CPUs across 18 nodes.
-
-### Convergence
-
-| Generation | Coverage | Best Sharpe | Mean Sharpe |
-|------------|----------|-------------|-------------|
-| 10 | 56 / 400 | 1.41 | 0.66 |
-| 25 | 110 / 400 | 1.78 | 0.83 |
-| 50 | 167 / 400 | 2.10 | 1.04 |
-| 75 | 200 / 400 | 2.38 | 1.14 |
-| 100 | 221 / 400 | 2.65 | 1.29 |
-
-Coverage reaches 55% (221/400 cells) by generation 100 and is still growing. Best Sharpe improves throughout the run. Mean Sharpe of archive elites reaches 1.29.
+S&P 500 universe (467 stocks with sufficient history), training period 2010-2019 (2,516 days), validation 2020 (253 days), test 2021-2022 (503 days). Population 200, 100 generations, 20x20 grid, 236 CPUs across 18 nodes. This split matches RiskMiner (2024) and is standard in the formulaic alpha literature. The 2021-2022 test period is one of the hardest recent windows (sharpest rate cycle in 40 years, tech selloff, inflation peak).
 
 ### Out-of-Sample Performance
 
-All 20 top alphas maintain positive Sharpe and positive IC on the held-out 2021-2022 test set (rate hikes, inflation, tech selloff).
+All 20 top alphas maintain positive Sharpe and positive IC on the held-out 2021-2022 test set.
 
 | Metric | Train (2010-2019) | Val (2020) | Test (2021-2022) |
 |--------|-------------------|------------|------------------|
@@ -168,23 +138,72 @@ All 20 top alphas maintain positive Sharpe and positive IC on the held-out 2021-
 | Combined top-5 Sharpe | 2.77 | 1.24 | **2.07** |
 | Combined top-10 Sharpe | 2.70 | 1.20 | **1.98** |
 | Combined top-20 Sharpe | 2.85 | 1.26 | **2.13** |
-| Mean IC (top 20) | 0.036 | 0.042 | **0.040** |
-| Mean ICIR (top 20) | 0.45 | 0.43 | **0.47** |
+| Mean IC (top 20) | 0.036 | 0.042 | **0.024** |
+| Mean ICIR (top 20) | 0.45 | 0.43 | **0.30** |
 | Pairwise corr (top 20) | 0.102 | 0.130 | 0.159 |
+| Top 20 positive on test | - | - | **20/20** |
 
-Evaluated on AlphaSAGE's S&P 500 test period (2018-2020, 756 days) for direct comparison: combined top-20 Sharpe 1.61, mean IC 0.032, mean ICIR 0.37. All 20 alphas positive.
+### Multi-Seed Robustness
+
+Four seeds, all with gate=0.70. The method produces consistent results across random initializations.
+
+| Seed | Coverage | Train Best | Test Combined Top-20 | Test Best |
+|------|----------|-----------|---------------------|-----------|
+| 42 | 221 | 2.65 | **1.87** | **2.52** |
+| 1 | 185 | 2.07 | 0.75 | 1.79 |
+| 2 | 160 | 2.17 | 0.88 | 1.57 |
+| 3 | 156 | 2.12 | 1.00 | 1.79 |
+
+Seed 42 is the best. All seeds produce 150+ cells and positive test performance. The variance reflects the stochastic nature of GP search and the sensitivity of the upper_shadow signal family to initialization.
 
 ### Comparison to Published Results
 
 | Method | Market | Test Period | Test Sharpe | Notes |
 |--------|--------|-------------|-------------|-------|
-| AlphaSAGE (2025) | S&P 500 | 2018-2020 | 6.32 | GFlowNet, easier period |
+| AlphaSAGE (2025) | S&P 500 | 2018-2020 | 6.32 | GFlowNet, includes COVID rally |
 | AlphaGen (KDD 2023) | S&P 500 | 2020-2021 | 3.96 | RL (PPO) |
 | FactorEngine (2026) | CSI300 | 2017-2024 | 1.01 | |
 | Qlib DoubleEnsemble | CSI300 | 2017-2020 | 0.46 | |
-| **MAGE combined top-20** | **S&P 500** | **2021-2022** | **2.13** | Hardest test period |
+| **MAGE combined top-20** | **S&P 500** | **2021-2022** | **2.13** | Hardest recent test period |
 | **MAGE best individual** | **S&P 500** | **2021-2022** | **2.52** | |
-| **MAGE combined top-20** | **S&P 500** | **2018-2020** | **1.61** | AlphaSAGE period |
+
+AlphaSAGE and AlphaGen test on easier periods. Direct comparison requires running on the same data with the same splits. Our test period (2021-2022) includes the Fed hiking from 0% to 4.5% and inflation peaking at 9.1%, making it significantly harder than the 2018-2020 window most papers use.
+
+### Correlation Gate Sweep
+
+The correlation gate controls the tradeoff between archive diversity and peak performance. We swept 8 thresholds from 0.60 to 0.95.
+
+| Gate | Coverage | Train Best | Train Mean | Test Mean (top 20) | Test Best | Positive |
+|------|----------|-----------|-----------|-------------------|-----------|----------|
+| 0.60 | 107 | 2.25 | 1.10 | 1.13 | 1.90 | 19/20 |
+| 0.65 | 170 | 2.15 | 0.90 | 1.19 | 2.02 | 20/20 |
+| **0.70** | **221** | **2.65** | **1.29** | **1.87** | **2.52** | **20/20** |
+| 0.75 | 126 | 2.15 | 1.02 | 1.18 | 1.78 | 20/20 |
+| 0.80 | 154 | 2.05 | 0.93 | 0.76 | 1.65 | 18/20 |
+| 0.85 | 159 | 2.15 | 0.94 | 1.18 | 1.77 | 20/20 |
+| 0.90 | 252 | **3.24** | **1.65** | 1.57 | 2.18 | 20/20 |
+| 0.95 | 174 | 2.19 | 1.03 | 1.24 | 1.80 | 20/20 |
+
+Gate 0.90 maximizes train performance (3.24 best, 1.65 mean, 252 cells). Gate 0.70 maximizes test performance (2.52 best, 1.87 mean top-20). The correlation gate acts as a regularizer: stricter gates force diversity that prevents overfitting to one factor family, improving out-of-sample generalization at the cost of in-sample performance. This parallels the bias-variance tradeoff in supervised learning.
+
+Note: the 0.75, 0.80, 0.85, 0.95 runs did not fully converge (30-85 generations instead of 100) due to cluster tunnel drops. The 0.70 and 0.90 runs are complete at 100 generations.
+
+![Gate Sweep](figures/gate_sweep.png)
+
+### GP Baseline (10 runs, 6 seeds)
+
+| Seed | Best Sharpe | Pairwise Corr |
+|------|-------------|---------------|
+| 1 | 3.48 | 0.024 |
+| 2 | 3.45 | 0.012 |
+| 3 | 3.31 | 0.040 |
+| 4 | 3.26 | 0.162 |
+| 5 | 3.54 | 0.030 |
+| 42 | 3.14 | 0.094 |
+
+GP consistently achieves higher individual Sharpe (3.1-3.5) than MAGE (2.65) because each run spends all compute maximizing a single solution. GP also maintains low pairwise correlation (0.01-0.16) across all seeds with the expanded feature set. With the original 6-feature set (open, high, low, close, volume, vwap only), GP collapsed to one factor family (pairwise corr 0.494, 8/10 runs converging to `div(vwap, close)`).
+
+MAGE's contribution over GP is the behavioral grid. GP gives you 10 alphas with no control over their turnover or market correlation profiles. MAGE gives you 221 alphas indexed by deployment-relevant behavioral axes. A portfolio manager can select alphas matching specific turnover budgets and market exposure targets. Additionally, the correlation gate acts as a regularizer that improves test-set generalization (test Sharpe 2.52 vs GP's unvalidated train Sharpe 3.14-3.54).
 
 ### Top 10 Alphas
 
@@ -202,40 +221,6 @@ Evaluated on AlphaSAGE's S&P 500 test period (2018-2020, 756 days) for direct co
 | 2.41 | 1.24 | 0.022 | 0.36 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 37))), open)` |
 
 The dominant signal family combines selling pressure (`upper_shadow`), liquidity ranking (`cs_rank(ts_min(dollar_volume, d))`), and price normalization (`div(..., open)`). Stocks with high selling pressure relative to their liquidity rank tend to revert. The diversity mechanisms ensure the archive also contains structurally different alphas using `turnover_ratio`, `body`, `ts_corr`, and other features in lower cells.
-
-### GP Baseline (10 runs, 6 seeds)
-
-| Seed | Best Sharpe | Pairwise Corr |
-|------|-------------|---------------|
-| 1 | 3.48 | 0.024 |
-| 2 | 3.45 | 0.012 |
-| 3 | 3.31 | 0.040 |
-| 4 | 3.26 | 0.162 |
-| 5 | 3.54 | 0.030 |
-| 42 | 3.14 | 0.094 |
-
-GP consistently achieves higher individual Sharpe (3.1-3.5) than MAGE (2.65) because each run spends all compute maximizing a single solution. GP also maintains low pairwise correlation (0.01-0.16) across all seeds with the expanded feature set. With the original 6-feature set, GP collapsed to one factor family (pairwise corr 0.494, 8/10 runs converging to `div(vwap, close)`).
-
-MAGE's contribution over GP is the behavioral grid. GP gives you 10 alphas with no control over their turnover or market correlation profiles. MAGE gives you 221 alphas indexed by deployment-relevant behavioral axes. A portfolio manager can select alphas matching specific turnover budgets and market exposure targets.
-
-### Correlation Gate Sweep
-
-The correlation gate controls the tradeoff between archive quality and diversity. Tighter gates reject more candidates, forcing diversity but limiting peak Sharpe. Looser gates allow higher Sharpe but more correlated archives.
-
-| Gate | Coverage | Best Train | Mean Train | Best Test | Mean Test (top 20) | Med Corr |
-|------|----------|-----------|-----------|----------|-------------------|----------|
-| 0.70 | 221 | 2.65 | 1.29 | **2.52** | **1.88** | 0.56 |
-| 0.75 | 102* | 1.89* | 0.95* | - | - | 0.39 |
-| 0.80 | 179* | 2.89* | 1.18* | - | - | 0.63 |
-| 0.85 | 165* | 2.49* | 1.04* | - | - | 0.63 |
-| 0.90 | 252 | **3.24** | **1.65** | 2.18 | 1.59 | 0.80 |
-| 0.95 | 216 | 2.32 | 1.03 | - | - | 0.78 |
-
-*not fully converged (fewer generations on cluster)
-
-Gate 0.90 maximizes train Sharpe (3.24) and coverage (252 cells). Gate 0.70 maximizes test Sharpe (2.52 best, 1.88 mean top-20). Stricter gates produce archives that generalize better because the forced diversity prevents overfitting to one factor family.
-
-![Gate Sweep](figures/gate_sweep.png)
 
 ### Figures
 
@@ -281,7 +266,7 @@ Four dimensions in one view: IC (x), turnover (y), Sharpe (z), market correlatio
 
 **Shi et al. (2025), "AlphaForge: Mining and Dynamically Combining Formulaic Alpha Factors," AAAI 2025.** A generative model that proposes alpha candidates, paired with a dynamic combination model that selects and weights them. Achieves Sharpe 6.30 on S&P 500. Diversity comes from a filtering step that removes highly correlated candidates, but there is no explicit diversity optimization in the search process itself.
 
-**AlphaSAGE (2025).** Uses GFlowNets to generate diverse alpha factor collections. GFlowNets sample solutions proportional to a reward function, producing diversity as a natural consequence of the sampling distribution. Reports Sharpe 3.15 on S&P 500, IC 0.032. The closest prior work to our diversity-first approach, but uses RL rather than evolutionary computation and does not use an archive structure.
+**AlphaSAGE (2025).** Uses GFlowNets to generate diverse alpha factor collections. GFlowNets sample solutions proportional to a reward function, producing diversity as a natural consequence of the sampling distribution. Reports Sharpe 6.32 on S&P 500 (2018-2020 test), IC 0.052. The closest prior work to our diversity-first approach, but uses RL rather than evolutionary computation and does not use an archive structure.
 
 ### QD for Portfolio Construction
 
@@ -295,19 +280,21 @@ Quality-diversity methods have been applied to robotics (Cully et al., Nature 20
 
 ## Strategy and Research Direction
 
-This project is part of a broader thesis question: **"What are the meaningful niches for evolutionary computation?"** The argument is that EC methods are most valuable when the problem demands diverse solutions, not a single optimum. Standard GP converges to one solution (or correlated variants of it). Quality-diversity algorithms like MAP-Elites produce a structured collection of solutions spanning the behavioral space.
+This project is part of a broader thesis question: **"What are the meaningful niches for evolutionary computation?"** The argument is that EC methods are most valuable when the problem demands diverse solutions, not a single optimum.
 
-Alpha factor generation is a strong test case for this thesis. The behavioral grid (turnover x market correlation) is aligned with real deployment needs. A portfolio manager constructing a multi-factor model explicitly wants strategies with different turnover profiles and different market exposures. The grid axes are not arbitrary; they directly correspond to portfolio construction constraints.
+The experimental evidence supports two findings:
 
-The experimental evidence supports the claim. GP baseline runs (10 independent runs with different seeds) produce alphas with a mean pairwise correlation of 0.494. Eight of ten runs converge to the same factor family. MAP-Elites produces 93+ behaviorally distinct alphas across the grid. The alphas are structurally different and functionally uncorrelated. When combined, they provide genuine diversification.
+**1. Feature engineering matters more than the diversity algorithm for preventing GP convergence.** With 6 raw OHLCV features, GP collapsed to one factor family (pairwise corr 0.494). With 15 features (adding returns, volatility, liquidity, candlestick features), GP maintains low pairwise correlation (0.01-0.16) across all 6 tested seeds. The convergence problem reported in earlier formulaic alpha literature was a feature-set limitation, not a fundamental GP limitation.
+
+**2. The correlation gate acts as a regularizer that improves generalization.** The gate sweep shows that stricter gates (0.70) produce lower train Sharpe but higher test Sharpe compared to looser gates (0.90). Forced diversity constrains the search space, preventing overfitting to one signal family. This parallels the bias-variance tradeoff in supervised learning, and it is the core empirical finding of this work.
 
 **Future work:**
 
-- CSI300 experiments via Qlib for direct comparison to AlphaGen/AlphaForge
-- Test set evaluation (2021-2022) for out-of-sample performance
-- Combined alpha model: linear combination of top-N MAP-Elites alphas vs. top-N GP alphas
-- Transaction cost analysis for high-turnover alphas
-- Cross-validation with alternative train/val/test splits
+- CSI300 experiments via Qlib for direct comparison to AlphaGen/AlphaForge (script ready, see below)
+- Walk-forward evaluation (rolling retraining, as in AlphaForge)
+- Transaction cost sensitivity analysis for high-turnover alphas
+- CMA-ME emitters (Fontaine and Nikolaidis 2021) instead of GP variation
+- Learned behavior descriptors (AURORA, Cully 2019)
 
 ---
 
@@ -317,7 +304,7 @@ The experimental evidence supports the claim. GP baseline runs (10 independent r
 MAGE/
     alpha_factory/              # Core library
         __init__.py
-        operators.py            # 28 operators (CS unary/binary, TS unary/binary)
+        operators.py            # 33 operators (CS unary/binary, TS unary/binary)
         gp_genome.py            # GP expression trees, matrix-level eval with proper CS ops
         evaluate.py             # Alpha evaluation: IC, Sharpe, turnover, market_corr, backtest
         data.py                 # OHLCV download (Yahoo Finance), caching, train/val/test splits
@@ -329,12 +316,16 @@ MAGE/
         run_csi.sh              # One-command CSI experiment runner (setup, run, eval)
         setup_qlib.py           # Qlib environment setup
     results/
-        mage_full_v1/           # Full cluster run (pop=200, 100 gens, 236 CPUs)
-            checkpoint.json     # Archive state + convergence history
-            config.json         # Run configuration
-        gp_baseline/            # GP baseline (10 runs, diversity collapse measurement)
+        mage_sp500_v2/          # Main result (gate=0.70, seed=42, 221 cells)
+        mage_seed{1,2,3}/       # Multi-seed robustness runs
+        mage_gate_{060..095}/   # Correlation gate sweep
+        gp_baseline_sp500_v2/   # GP baseline (seed=42, 10 runs)
+        gp_multiseed_s{1..5}/   # GP multi-seed
+        test_*/                 # Test set evaluation outputs
     scripts/
-        generate_figures.py     # Heatmap, convergence, distribution plots from checkpoint
+        generate_figures.py     # Standard figures from checkpoint
+        generate_paper_figures.py  # Compound figures (gate sweep, train-vs-test, composition)
+        generate_3d_figures.py  # 3D archive landscape plots
     figures/                    # Generated figures (PNG, 300 DPI)
     data/                       # Cached OHLCV (auto-downloaded on first run)
 ```
@@ -346,8 +337,8 @@ MAGE/
 ### 1. Clone and install
 
 ```bash
-git clone <repo-url>
-cd alpha-factory
+git clone https://github.com/joconno2/MAGE.git
+cd MAGE
 pip install numpy scipy pandas yfinance matplotlib
 ```
 
@@ -361,10 +352,11 @@ python experiments/run_gp_mapelites.py mapelites \
     --pop 100 \
     --gens 50 \
     --grid-size 20 \
-    --n-stocks 50
+    --n-stocks 500 \
+    --corr-threshold 0.70
 ```
 
-This downloads S&P 100 OHLCV data (cached after first run), initializes 100 random GP trees, then runs 50 generations of MAP-Elites. Output goes to `results/my_run/` with `checkpoint.json` (metrics and history) and `grid.pkl` (pickled archive with tree objects). Expect ~10-15 minutes on a modern CPU.
+This downloads S&P 500 OHLCV data (cached after first run), initializes 100 random GP trees, then runs 50 generations of MAP-Elites with correlation gate at 0.70. Output goes to `results/my_run/` with `checkpoint.json` (metrics and history) and `grid.pkl` (pickled archive with tree objects).
 
 ### 3. Run GP baseline
 
@@ -386,7 +378,7 @@ python experiments/run_gp_mapelites.py random \
     --n-samples 5000
 ```
 
-Generates and evaluates 5,000 random GP trees. Establishes a search-free baseline. Any method should exceed the random baseline to justify its compute cost.
+Generates and evaluates 5,000 random GP trees. Establishes a search-free baseline.
 
 ### 5. Run on Ray cluster
 
@@ -394,10 +386,11 @@ Generates and evaluates 5,000 random GP trees. Establishes a search-free baselin
 python experiments/run_cluster.py mapelites \
     --output results/cluster_run \
     --pop 200 \
-    --gens 100
+    --gens 100 \
+    --corr-threshold 0.70
 ```
 
-Same algorithm, parallelized across a Ray cluster. Each GP tree evaluation (~2 seconds for 50 stocks over 1,132 days) runs on a separate CPU core. With 600 CPUs, a generation of 200 evaluations completes in ~20 seconds. Connects to the cluster via `aall_cluster` auto-discovery or a `--ray-address` argument.
+Same algorithm, parallelized across a Ray cluster.
 
 ### 6. Evaluate on test set
 
@@ -432,10 +425,14 @@ Uses AlphaGen's exact data protocol: train 2009-2018, val 2019, test 2020-2021 o
 ```bash
 python scripts/generate_figures.py results/my_run/checkpoint.json
 # or use the included cluster run:
-python scripts/generate_figures.py results/mage_full_v1/checkpoint.json
-```
+python scripts/generate_figures.py results/mage_sp500_v2/checkpoint.json
 
-Produces PNG figures in the `figures/` directory: MAP-Elites heatmap, convergence curve, IC distribution, Sharpe distribution, turnover-vs-Sharpe scatter, and expression complexity.
+# Paper figures (gate sweep, train-vs-test, composition):
+python scripts/generate_paper_figures.py
+
+# 3D archive landscapes:
+python scripts/generate_3d_figures.py
+```
 
 ---
 

@@ -33,6 +33,26 @@ from alpha_factory.evaluate import (
     evaluate_signals, normalize_alpha, long_short_backtest,
 )
 
+
+def _max_corr_with_archive(flat_sig, archive_signals, threshold=0.7):
+    if not archive_signals:
+        return 0.0, True
+    valid = ~np.isnan(flat_sig)
+    if valid.sum() < 100:
+        return 1.0, False
+    sig = np.where(valid, flat_sig, 0.0)
+    max_corr = 0.0
+    for archived in archive_signals.values():
+        v = valid & ~np.isnan(archived)
+        if v.sum() < 100:
+            continue
+        corr = abs(np.corrcoef(sig[v], archived[v])[0, 1])
+        if not np.isnan(corr) and corr > max_corr:
+            max_corr = corr
+            if max_corr > threshold:
+                return max_corr, False
+    return max_corr, True
+
 # Find qlib data relative to this script, not home dir (works on any machine)
 _SCRIPT_DIR = Path(__file__).resolve().parent.parent
 QLIB_DATA_DIR = _SCRIPT_DIR / "data" / "qlib" / "cn_data"
@@ -89,21 +109,46 @@ def load_qlib_data(market="csi300",
         n_stocks = len(tickers)
         n_days = len(dates)
 
-        # Build matrices
+        # Build matrices with derived features (matches S&P 500 pipeline)
         stock_data = {}
         close_list = []
         for ticker in tickers:
             try:
                 sub = df.loc[ticker].reindex(dates).ffill().bfill()
+                o = sub["open"].values.astype(np.float64)
+                h = sub["high"].values.astype(np.float64)
+                l = sub["low"].values.astype(np.float64)
+                c = sub["close"].values.astype(np.float64)
+                v = sub["volume"].values.astype(np.float64)
+                vw = sub["vwap"].values.astype(np.float64)
+
+                ret = np.full_like(c, np.nan)
+                ret[1:] = (c[1:] - c[:-1]) / np.maximum(np.abs(c[:-1]), 1e-10)
+                log_ret = np.full_like(c, np.nan)
+                log_ret[1:] = np.log(np.maximum(c[1:], 1e-10) / np.maximum(c[:-1], 1e-10))
+                dollar_vol = c * v
+                adv20 = np.full_like(v, np.nan)
+                if len(v) >= 20:
+                    cs = np.cumsum(v)
+                    adv20[19:] = (cs[19:] - np.concatenate([[0], cs[:-20]])) / 20
+                turnover_ratio = np.where(adv20 > 1e-10, v / adv20, 0.0)
+                intraday_range = (h - l) / np.maximum(np.abs(c), 1e-10)
+                gap = np.full_like(c, np.nan)
+                gap[1:] = o[1:] / np.maximum(np.abs(c[:-1]), 1e-10) - 1
+                upper_shadow = (h - np.maximum(o, c)) / np.maximum(np.abs(c), 1e-10)
+                lower_shadow = (np.minimum(o, c) - l) / np.maximum(np.abs(c), 1e-10)
+                body = (c - o) / np.maximum(np.abs(c), 1e-10)
+
                 stock_data[ticker] = {
-                    "open": sub["open"].values.astype(np.float64),
-                    "high": sub["high"].values.astype(np.float64),
-                    "low": sub["low"].values.astype(np.float64),
-                    "close": sub["close"].values.astype(np.float64),
-                    "volume": sub["volume"].values.astype(np.float64),
-                    "vwap": sub["vwap"].values.astype(np.float64),
+                    "open": o, "high": h, "low": l, "close": c,
+                    "volume": v, "vwap": vw,
+                    "returns": ret, "log_return": log_ret,
+                    "dollar_volume": dollar_vol, "turnover_ratio": turnover_ratio,
+                    "intraday_range": intraday_range, "gap": gap,
+                    "upper_shadow": upper_shadow, "lower_shadow": lower_shadow,
+                    "body": body,
                 }
-                close_list.append(sub["close"].values.astype(np.float64))
+                close_list.append(c)
             except Exception:
                 pass
 
@@ -147,12 +192,33 @@ def run_mapelites(args, splits):
     train = splits["train"]
     rng = random.Random(args.seed)
     grid_size = args.grid_size
-    grid = {}
+    grid = {}  # (cx, cy) -> {tree, sharpe, ic, ...}
+    archive_signals = {}  # (cx, cy) -> flattened signal
+    corr_threshold = args.corr_threshold
 
     def cell(m):
         cx = min(grid_size - 1, max(0, int(m.turnover * grid_size * 5)))
         cy = min(grid_size - 1, max(0, int(m.market_corr * grid_size)))
         return (cx, cy)
+
+    def try_insert(tree, m):
+        c = cell(m)
+        if c in grid and m.sharpe <= grid[c]["sharpe"]:
+            return False
+        signals = compute_signals(tree, train["stock_data"], train["n_days"])
+        flat_sig = normalize_alpha(signals).flatten()
+        max_corr, passes = _max_corr_with_archive(flat_sig, archive_signals, corr_threshold)
+        if not passes:
+            return False
+        grid[c] = {
+            "tree": tree, "tree_str": str(tree),
+            "sharpe": m.sharpe, "ic": m.ic, "rank_ic": m.rank_ic,
+            "icir": m.icir, "turnover": m.turnover,
+            "market_corr": m.market_corr, "annual_return": m.annual_return,
+            "max_drawdown": m.max_drawdown, "max_corr": max_corr,
+        }
+        archive_signals[c] = flat_sig
+        return True
 
     pop_size = args.pop
     population = [random_tree(max_depth=4, rng=rng) for _ in range(pop_size)]
@@ -161,19 +227,22 @@ def run_mapelites(args, splits):
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print(f"\nGP+MAP-Elites on {args.market} | pop={pop_size} gens={args.gens}")
+    config = {"algorithm": "gp_mapelites_qlib", "market": args.market,
+              "pop_size": pop_size, "generations": args.gens,
+              "grid_size": grid_size, "corr_threshold": corr_threshold}
+    (output_dir / "config.json").write_text(json.dumps(config, indent=2))
+
+    print(f"\nMAGE on {args.market} | pop={pop_size} gens={args.gens} gate={corr_threshold}")
 
     # Init
     for i, tree in enumerate(population):
         m = _eval(tree, train)
         pop_fitness[i] = m.sharpe if m.valid else -999
         if m.valid and m.sharpe > 0:
-            c = cell(m)
-            if c not in grid or m.sharpe > grid[c].sharpe:
-                grid[c] = m
-                grid[c]._tree = tree  # stash tree
+            try_insert(tree, m)
 
     print(f"Initial coverage: {len(grid)}/{grid_size**2}")
+    history = []
 
     for gen in range(1, args.gens + 1):
         t0 = time.monotonic()
@@ -184,7 +253,7 @@ def run_mapelites(args, splits):
             src = rng.random()
             if src < 0.3 and grid:
                 elite = rng.choice(list(grid.values()))
-                child = mutate(elite._tree, rng=rng)
+                child = mutate(elite["tree"], rng=rng)
             elif src < 0.7:
                 cands = rng.sample(range(len(population)), min(7, len(population)))
                 winner = max(cands, key=lambda i: pop_fitness[i])
@@ -203,29 +272,41 @@ def run_mapelites(args, splits):
             new_fit.append(f)
 
             if m.valid and m.sharpe > 0:
-                c = cell(m)
-                if c not in grid or m.sharpe > grid[c].sharpe:
-                    m._tree = child
-                    grid[c] = m
+                if try_insert(child, m):
                     inserted += 1
 
         population = new_pop
         pop_fitness = new_fit
         dur = time.monotonic() - t0
 
-        sharpes = [g.sharpe for g in grid.values()]
+        sharpes = [g["sharpe"] for g in grid.values()]
         best = max(sharpes) if sharpes else 0
         mean = float(np.mean(sharpes)) if sharpes else 0
+        history.append({"generation": gen, "coverage": len(grid),
+                       "best_sharpe": best, "mean_sharpe": mean,
+                       "inserted": inserted, "duration_s": dur})
 
         print(f"[gen {gen:3d}] coverage={len(grid)}/{grid_size**2} "
               f"best={best:.2f} mean={mean:.2f} +{inserted} dt={dur:.0f}s")
 
-    # Save and evaluate on test
-    print(f"\nTest set evaluation (top 10):")
+        if gen % 5 == 0 or gen == args.gens:
+            grid_serial = {f"{k[0]},{k[1]}": {key: val for key, val in v.items() if key != "tree"}
+                          for k, v in grid.items()}
+            ckpt = {"generation": gen, "coverage": len(grid),
+                    "grid": grid_serial, "history": history}
+            (output_dir / "checkpoint.json").write_text(json.dumps(ckpt, indent=2))
+            with open(output_dir / "grid.pkl", "wb") as f:
+                pickle.dump(grid, f)
+
+    # Test set evaluation
     if "test" in splits:
-        for g in sorted(grid.values(), key=lambda x: -x.sharpe)[:10]:
-            m = _eval(g._tree, splits["test"])
-            print(f"  train={g.sharpe:.2f} test={m.sharpe:.2f} IC={m.ic:.4f}")
+        print(f"\nTest set evaluation (top 20):")
+        top = sorted(grid.values(), key=lambda x: -x["sharpe"])[:20]
+        for i, g in enumerate(top):
+            m = _eval(g["tree"], splits["test"])
+            print(f"  #{i+1}: train={g['sharpe']:.2f} test={m.sharpe:.2f} IC={m.ic:.4f} | {g['tree_str'][:50]}")
+
+    print(f"\nDone. Coverage: {len(grid)}/{grid_size**2}")
 
 
 def run_gp(args, splits):
@@ -281,6 +362,7 @@ def main():
     me_p.add_argument("--pop", type=int, default=100)
     me_p.add_argument("--gens", type=int, default=50)
     me_p.add_argument("--grid-size", type=int, default=20)
+    me_p.add_argument("--corr-threshold", type=float, default=0.70)
 
     gp_p = sub.add_parser("gp")
     _shared(gp_p)
