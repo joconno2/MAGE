@@ -311,26 +311,6 @@ Quality-diversity methods have been applied to robotics (Cully et al., Nature 20
 
 ---
 
-## Strategy and Research Direction
-
-This project is part of a broader thesis question: **"What are the meaningful niches for evolutionary computation?"** The argument is that EC methods are most valuable when the problem demands diverse solutions, not a single optimum.
-
-The experimental evidence supports two findings:
-
-**1. Feature engineering matters more than the diversity algorithm for preventing GP convergence.** With 6 raw OHLCV features, GP collapsed to one factor family (pairwise corr 0.494). With 15 features (adding returns, volatility, liquidity, candlestick features), GP maintains low pairwise correlation (0.01-0.16) across all 6 tested seeds. The convergence problem reported in earlier formulaic alpha literature was a feature-set limitation, not a fundamental GP limitation.
-
-**2. The correlation gate acts as a regularizer that improves generalization.** The gate sweep shows that stricter gates (0.70) produce lower train Sharpe but higher test Sharpe compared to looser gates (0.90). Forced diversity constrains the search space, preventing overfitting to one signal family. This parallels the bias-variance tradeoff in supervised learning, and it is the core empirical finding of this work.
-
-**Future work:**
-
-- CSI300 experiments via Qlib for direct comparison to AlphaGen/AlphaForge (script ready, see below)
-- Walk-forward evaluation (rolling retraining, as in AlphaForge)
-- Transaction cost sensitivity analysis for high-turnover alphas
-- CMA-ME emitters (Fontaine and Nikolaidis 2021) instead of GP variation
-- Learned behavior descriptors (AURORA, Cully 2019)
-
----
-
 ## Project Structure
 
 ```
