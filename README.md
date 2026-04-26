@@ -335,7 +335,8 @@ The experimental evidence supports two findings:
 
 ```
 MAGE/
-    run_gp_baseline_and_eval.sh # One-command: GP baseline + test eval (S&P 500)
+    run_gp_baseline_and_eval.sh  # GP baseline + test eval (Linux/macOS)
+    run_gp_baseline_and_eval.py  # GP baseline + test eval (Windows/any OS)
     alpha_factory/              # Core library
         __init__.py
         operators.py            # 33 operators (CS unary/binary, TS unary/binary)
@@ -384,7 +385,11 @@ Dependencies: `numpy`, `scipy`, `pandas`, `yfinance`, `matplotlib`. Python 3.10+
 Runs the GP baseline (10 independent runs, pop=200, 100 gens) and evaluates both the GP results and the included MAP-Elites archive on the held-out 2021-2022 test set. One script, no arguments needed.
 
 ```bash
+# Linux / macOS
 ./run_gp_baseline_and_eval.sh
+
+# Windows (or any OS)
+python run_gp_baseline_and_eval.py
 ```
 
 This creates the venv if it doesn't exist, downloads S&P 500 data (cached after first run), runs the GP baseline, saves tree objects for test evaluation, then runs `eval_test_set.py` against both the GP trees and the MAP-Elites archive (`results/mage_sp500_v2/grid.pkl`, included in the repo).
