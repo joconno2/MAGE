@@ -1,0 +1,182 @@
+[
+  {
+    "rank": 1,
+    "train_sharpe": 6.824442903003641,
+    "test_sharpe": -0.6308363063873974,
+    "test_ic": 0.0026607526712475607,
+    "test_icir": 0.051757323896052636,
+    "turnover": 0.20888511814055477,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(gap, upper_shadow, 5), ts_c"
+  },
+  {
+    "rank": 2,
+    "train_sharpe": 6.317163102820853,
+    "test_sharpe": -0.7245671654055884,
+    "test_ic": 0.003934012490475302,
+    "test_icir": 0.07571938513782439,
+    "turnover": 0.20329512526862487,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(gap, upper_shadow, 5), ts_c"
+  },
+  {
+    "rank": 3,
+    "train_sharpe": 6.28320635201213,
+    "test_sharpe": -0.8594328962427089,
+    "test_ic": 0.02214514022265822,
+    "test_icir": 0.2897676192076064,
+    "turnover": 0.1805318207730988,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(dollar_volume, ts_argmax(lo"
+  },
+  {
+    "rank": 4,
+    "train_sharpe": 6.245517182427391,
+    "test_sharpe": -1.0856680246104802,
+    "test_ic": 0.02294522067951081,
+    "test_icir": 0.2872341108264377,
+    "turnover": 0.1894228944910797,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(ts_argmax(lower_shadow, 13)"
+  },
+  {
+    "rank": 5,
+    "train_sharpe": 6.155999788156862,
+    "test_sharpe": -0.8587599319013869,
+    "test_ic": 0.003917975499562052,
+    "test_icir": 0.06694481249762363,
+    "turnover": 0.185442304235626,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(mul(log_return, intraday_ra"
+  },
+  {
+    "rank": 6,
+    "train_sharpe": 6.1098340194829115,
+    "test_sharpe": -0.612534753733284,
+    "test_ic": 0.0026101652931756606,
+    "test_icir": 0.04715482348130787,
+    "turnover": 0.1855789398565641,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(mul(log_return, returns), g"
+  },
+  {
+    "rank": 7,
+    "train_sharpe": 6.092084113139311,
+    "test_sharpe": -1.2147468287830554,
+    "test_ic": 0.0041956504738819575,
+    "test_icir": 0.05503822990217556,
+    "turnover": 0.15920444733768555,
+    "expression": "less(ts_argmax(upper_shadow, 13), pow(ts_argmax(lower_shadow, 13), ts_skew(lower"
+  },
+  {
+    "rank": 8,
+    "train_sharpe": 6.024923651290208,
+    "test_sharpe": -0.6795153403692165,
+    "test_ic": 0.0023176472480441854,
+    "test_icir": 0.04803963580206803,
+    "turnover": 0.19314269079319873,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(mul(log_return, intraday_ra"
+  },
+  {
+    "rank": 9,
+    "train_sharpe": 5.983934135175703,
+    "test_sharpe": -0.5171882071749428,
+    "test_ic": -0.0006015250506852934,
+    "test_icir": -0.010809359651590815,
+    "turnover": 0.1903923611879302,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(mul(vwap, intraday_range), "
+  },
+  {
+    "rank": 10,
+    "train_sharpe": 5.938804351670241,
+    "test_sharpe": -0.3434040279412508,
+    "test_ic": 0.0041161441952560635,
+    "test_icir": 0.06818748748439654,
+    "turnover": 0.16018188460094762,
+    "expression": "mul(ts_argmax(lower_shadow, 13), greater(div(volume, ts_kurt(lower_shadow, 17)),"
+  },
+  {
+    "rank": 11,
+    "train_sharpe": 5.919007031385852,
+    "test_sharpe": -0.4629209203522768,
+    "test_ic": 0.0075723697094000515,
+    "test_icir": 0.1424162198881506,
+    "turnover": 0.20192398299483383,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(lower_shadow, upper_shadow,"
+  },
+  {
+    "rank": 12,
+    "train_sharpe": 5.9003234110296265,
+    "test_sharpe": -1.079349905279362,
+    "test_ic": -0.0016715484278093334,
+    "test_icir": -0.03153916141779832,
+    "turnover": 0.1887548567380077,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(ts_ref(high, 6), high, 7), "
+  },
+  {
+    "rank": 13,
+    "train_sharpe": 5.885841576217762,
+    "test_sharpe": -0.5732106849910424,
+    "test_ic": 0.005087309734434656,
+    "test_icir": 0.10047818995762549,
+    "turnover": 0.22025142518569377,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(less(open, upper_shadow), t"
+  },
+  {
+    "rank": 14,
+    "train_sharpe": 5.881262437154301,
+    "test_sharpe": -1.4670015402216252,
+    "test_ic": 0.0002811882960004822,
+    "test_icir": 0.0055407267799886546,
+    "turnover": 0.19534171047312313,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(ts_rank(intraday_range, 10)"
+  },
+  {
+    "rank": 15,
+    "train_sharpe": 5.859611184877342,
+    "test_sharpe": -1.317718941541612,
+    "test_ic": 0.0012227461283761142,
+    "test_icir": 0.015088183461672096,
+    "turnover": 0.1331514777839829,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(mul(ts_corr(ts_argmax(lower_shadow, 13)"
+  },
+  {
+    "rank": 16,
+    "train_sharpe": 5.840770366064918,
+    "test_sharpe": -0.7797119224244512,
+    "test_ic": 0.0012166701591086206,
+    "test_icir": 0.0244990068376082,
+    "turnover": 0.1933823478472878,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(mul(log_return, intraday_ra"
+  },
+  {
+    "rank": 17,
+    "train_sharpe": 5.764771976453365,
+    "test_sharpe": -0.7667219114024065,
+    "test_ic": 0.016869274339784864,
+    "test_icir": 0.2432312535006879,
+    "turnover": 0.19224065732292808,
+    "expression": "pow(less(greater(cs_rank(cs_rank(turnover_ratio)), high), pow(ts_argmax(lower_sh"
+  },
+  {
+    "rank": 18,
+    "train_sharpe": 5.759375271619238,
+    "test_sharpe": -1.039071431858828,
+    "test_ic": 0.005314404054040666,
+    "test_icir": 0.09136975122661335,
+    "turnover": 0.19618979363756608,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(add(intraday_range, gap), u"
+  },
+  {
+    "rank": 19,
+    "train_sharpe": 5.755941076219963,
+    "test_sharpe": -1.4832636552217369,
+    "test_ic": 0.011219945510042876,
+    "test_icir": 0.15392754884513143,
+    "turnover": 0.17410607304271758,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(ts_std(turnover_ratio, 28),"
+  },
+  {
+    "rank": 20,
+    "train_sharpe": 5.721546393615476,
+    "test_sharpe": -1.1682696074150745,
+    "test_ic": 0.010261681157182182,
+    "test_icir": 0.1784261191368626,
+    "turnover": 0.1976962865578036,
+    "expression": "pow(ts_argmax(lower_shadow, 13), greater(div(ts_corr(add(intraday_range, gap), u"
+  }
+]

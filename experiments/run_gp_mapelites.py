@@ -401,6 +401,10 @@ def run_gp_baseline(args):
     }
     (output_dir / "result.json").write_text(json.dumps(summary, indent=2))
 
+    # Save trees for test set evaluation
+    with open(output_dir / "trees.pkl", "wb") as f:
+        pickle.dump(all_trees, f)
+
 
 # ── Random baseline ───────────────────────────────────────────────────
 

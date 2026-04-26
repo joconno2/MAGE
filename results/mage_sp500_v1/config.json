@@ -1,0 +1,8 @@
+{
+  "algorithm": "gp_mapelites_cluster",
+  "pop_size": 200,
+  "generations": 100,
+  "grid_size": 20,
+  "n_stocks": 467,
+  "n_days": 141
+}

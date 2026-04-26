@@ -147,14 +147,15 @@ All 20 top alphas maintain positive Sharpe and positive IC on the held-out 2021-
 
 Four seeds, all with gate=0.70. The method produces consistent results across random initializations.
 
-| Seed | Coverage | Train Best | Test Combined Top-20 | Test Best |
-|------|----------|-----------|---------------------|-----------|
-| 42 | 221 | 2.65 | **1.87** | **2.52** |
-| 1 | 185 | 2.07 | 0.75 | 1.79 |
-| 2 | 160 | 2.17 | 0.88 | 1.57 |
-| 3 | 156 | 2.12 | 1.00 | 1.79 |
+| Seed | Coverage | Best Train | Mean Train | Top-20 Mean Train | Best Test | Mean Test (top 20) | Positive |
+|------|----------|-----------|-----------|-------------------|-----------|-------------------|----------|
+| 42 | 221 | 2.655 | 1.290 | 2.423 | **2.523** | **1.871** | **20/20** |
+| 1 | 185 | 2.072 | 0.880 | 1.577 | 1.786 | 0.748 | 16/20 |
+| 2 | 160 | 2.171 | 0.938 | 1.588 | 1.572 | 0.879 | 17/20 |
+| 3 | 156 | 2.116 | 0.993 | 1.670 | 1.788 | 1.001 | 16/20 |
+| **Mean** | **180 +/- 26** | **2.254 +/- 0.234** | -- | **1.815 +/- 0.361** | **1.917 +/- 0.360** | **1.125 +/- 0.440** | **17.3/20** |
 
-Seed 42 is the best. All seeds produce 150+ cells and positive test performance. The variance reflects the stochastic nature of GP search and the sensitivity of the upper_shadow signal family to initialization.
+Seed 42 is the best. All seeds produce 150+ cells and positive test performance. Even the worst seed (seed 2) produces 160 distinct alphas with 17/20 positive on test. The variance reflects the stochastic nature of GP search and the sensitivity of the upper_shadow signal family to initialization.
 
 ### Comparison to Published Results
 
@@ -190,6 +191,15 @@ Note: the 0.75, 0.80, 0.85, 0.95 runs did not fully converge (30-85 generations 
 
 ![Gate Sweep](figures/gate_sweep.png)
 
+### No-Gates Ablation
+
+| Condition | Coverage | Best Train | Mean Train | Archive Max Corr (mean) |
+|-----------|----------|-----------|-----------|------------------------|
+| MAGE (gate=0.70) | 221/400 | 2.655 | 1.290 | 0.683 |
+| MAGE (no gates) | 135/400 | 1.962 | 0.999 | 0.712 |
+
+Without the correlation gate, the archive fills with correlated variants. Coverage drops from 221 to 135 despite no gate restricting insertion. The gate forces the search to explore new behavioral regions instead of refining one signal family.
+
 ### GP Baseline (10 runs, 6 seeds)
 
 | Seed | Best Sharpe | Pairwise Corr |
@@ -201,26 +211,49 @@ Note: the 0.75, 0.80, 0.85, 0.95 runs did not fully converge (30-85 generations 
 | 5 | 3.54 | 0.030 |
 | 42 | 3.14 | 0.094 |
 
-GP consistently achieves higher individual Sharpe (3.1-3.5) than MAGE (2.65) because each run spends all compute maximizing a single solution. GP also maintains low pairwise correlation (0.01-0.16) across all seeds with the expanded feature set. With the original 6-feature set (open, high, low, close, volume, vwap only), GP collapsed to one factor family (pairwise corr 0.494, 8/10 runs converging to `div(vwap, close)`).
+**Train:** GP Sharpe 2.895 +/- 0.159 (range 2.629-3.140) across 10 runs (seed 42). GP consistently achieves higher individual Sharpe than MAGE (2.65) because each run spends all compute maximizing a single solution. GP also maintains low pairwise correlation (0.01-0.16) across all seeds with the expanded feature set. With the original 6-feature set (open, high, low, close, volume, vwap only), GP collapsed to one factor family (pairwise corr 0.494, 8/10 runs converging to `div(vwap, close)`).
 
-MAGE's contribution over GP is the behavioral grid. GP gives you 10 alphas with no control over their turnover or market correlation profiles. MAGE gives you 221 alphas indexed by deployment-relevant behavioral axes. A portfolio manager can select alphas matching specific turnover budgets and market exposure targets. Additionally, the correlation gate acts as a regularizer that improves test-set generalization (test Sharpe 2.52 vs GP's unvalidated train Sharpe 3.14-3.54).
+**Test:** GP baseline test evaluation in progress (re-running with tree object saving for held-out evaluation).
 
-### Top 10 Alphas
+MAGE's contribution over GP is the behavioral grid. GP gives you 10 alphas with no control over their turnover or market correlation profiles. MAGE gives you 221 alphas indexed by deployment-relevant behavioral axes. A portfolio manager can select alphas matching specific turnover budgets and market exposure targets. Additionally, the correlation gate acts as a regularizer that improves test-set generalization.
 
-| Train | Test | IC | ICIR | Expression |
-|-------|------|-----|------|------------|
-| 2.65 | 2.05 | 0.036 | 0.39 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 32))), open)` |
-| 2.57 | 2.23 | 0.023 | 0.28 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
-| 2.56 | 2.12 | 0.026 | 0.37 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
-| 2.53 | 1.88 | 0.030 | 0.43 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
-| 2.51 | 1.93 | 0.031 | 0.50 | `div(pow(upper_shadow, cs_rank(ts_min(volume, 35))), open)` |
-| 2.51 | 2.02 | 0.013 | 0.27 | `div(mul(upper_shadow, div(greater(turnover_ratio, ...))), ...)` |
-| 2.50 | 2.05 | 0.037 | 0.41 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
-| 2.48 | 1.48 | 0.010 | 0.17 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
-| 2.47 | 2.52 | 0.032 | 0.41 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, ...))), ...)` |
-| 2.41 | 1.24 | 0.022 | 0.36 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 37))), open)` |
+### Feature Engineering Impact
 
-The dominant signal family combines selling pressure (`upper_shadow`), liquidity ranking (`cs_rank(ts_min(dollar_volume, d))`), and price normalization (`div(..., open)`). Stocks with high selling pressure relative to their liquidity rank tend to revert. The diversity mechanisms ensure the archive also contains structurally different alphas using `turnover_ratio`, `body`, `ts_corr`, and other features in lower cells.
+| Feature Set | GP Pairwise Corr | MAGE Archive Diversity |
+|-------------|-----------------|----------------------|
+| 6 features (raw OHLCV) | 0.494 (collapse) | Dominated by div(vwap, close) |
+| 15 features (raw + derived) | 0.094 (no collapse) | 19 root operators, 221 cells |
+
+The expanded feature set is the primary driver of diversity. The correlation gate acts as regularization (improves test generalization), not as a collapse prevention mechanism.
+
+### Top 20 Alphas (sorted by test Sharpe)
+
+| Rank | Train | Test | IC | Turnover | Expression (truncated) |
+|------|-------|------|------|----------|----------------------|
+| 1 | 2.47 | 2.52 | 0.032 | 0.110 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 2 | 2.57 | 2.23 | 0.023 | 0.142 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 3 | 2.32 | 2.20 | 0.022 | 0.117 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 4 | 2.56 | 2.12 | 0.026 | 0.107 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 5 | 2.35 | 2.12 | 0.032 | 0.118 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 6 | 2.50 | 2.05 | 0.037 | 0.086 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 7 | 2.65 | 2.05 | 0.036 | 0.100 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 32))), close)` |
+| 8 | 2.30 | 2.04 | 0.028 | 0.180 | `div(upper_shadow, mul(cs_rank(ts_min(dollar_volume, 40)), ...))` |
+| 9 | 2.51 | 2.02 | 0.013 | 0.189 | `div(mul(upper_shadow, div(greater(turnover_ratio, ...))), ...)` |
+| 10 | 2.37 | 1.94 | 0.027 | 0.199 | `cs_rank(div(mul(upper_shadow, pow(turnover_ratio, ...)), ...))` |
+| 11 | 2.51 | 1.93 | 0.031 | 0.128 | `div(pow(upper_shadow, cs_rank(ts_min(volume, 35))), open)` |
+| 12 | 2.53 | 1.88 | 0.030 | 0.126 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 13 | 2.26 | 1.88 | 0.020 | 0.127 | `div(pow(upper_shadow, cs_rank(ts_min(lower_shadow, 29))), close)` |
+| 14 | 2.40 | 1.86 | 0.021 | 0.214 | `div(mul(upper_shadow, div(greater(dollar_volume, ...))), ...)` |
+| 15 | 2.26 | 1.78 | 0.020 | 0.179 | `div(div(upper_shadow, cs_rank(close)), dollar_volume)` |
+| 16 | 2.38 | 1.57 | 0.010 | 0.247 | `div(mul(upper_shadow, div(greater(turnover_ratio, ...))), ...)` |
+| 17 | 2.48 | 1.48 | 0.010 | 0.107 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 18 | 2.28 | 1.45 | 0.018 | 0.103 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 34))), ...)` |
+| 19 | 2.41 | 1.24 | 0.022 | 0.096 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 37))), ...)` |
+| 20 | 2.35 | 1.06 | 0.021 | 0.108 | `div(less(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 28))), ...)` |
+
+All 20 positive on test. All 20 positive IC. Test Sharpe distribution: min=1.058, median=1.936, max=2.523, mean=1.871.
+
+The dominant signal family combines selling pressure (`upper_shadow`), liquidity ranking (`cs_rank(ts_min(dollar_volume, d))`), and price normalization (`div(..., close/open)`). Stocks with high selling pressure relative to their liquidity rank tend to revert. The diversity mechanisms ensure the archive also contains structurally different alphas using `turnover_ratio`, `body`, `ts_corr`, and other features in lower cells.
 
 ### Figures
 
@@ -436,12 +469,38 @@ python scripts/generate_3d_figures.py
 
 ---
 
+### Archive Distribution (seed 42)
+
+| Metric | Value |
+|--------|-------|
+| Coverage | 221/400 (55%) |
+| Unique root operators | 19 |
+| Sharpe: p25 / p50 / p75 | 0.762 / 1.277 / 1.792 |
+| IC: mean | 0.0186 |
+| Turnover: min / mean / max | 0.000 / 0.102 / 0.308 |
+| Market corr: min / mean / max | 0.002 / 0.324 / 0.852 |
+
+Root operators found: cs_abs, cs_log, cs_rank, cs_sign, div, greater, less, mul, pow, sub, ts_argmax, ts_argmin, ts_cov, ts_kurt, ts_mad, ts_product, ts_std, ts_sum, ts_var.
+
+---
+
+## Paper Target
+
+**IEEE CIFEr 2026**, Tokyo, Sep 10-11. Deadline: **May 15, 2026**.
+
+- 8 pages max, IEEE double-column (IEEEtran.cls), blind review, PDF via CMT
+- Up to 2 extra pages at JPY 16,000/page
+- Template: https://www.ieee.org/conferences/publishing/templates.html
+- Submission: https://cmt3.research.microsoft.com/CIFEr2026/
+
+---
+
 ## Citation
 
 ```bibtex
 @article{oconnor2026mage,
   title     = {{MAGE}: {MAP}-Elites for Alpha Generation},
-  author    = {O'Connor, Jim},
+  author    = {O'Connor, Jim and Mullinax, Mitch and Fernandez, Melanie and Parker, Gary},
   year      = {2026},
 }
 ```

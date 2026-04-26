@@ -1,0 +1,10 @@
+{
+  "algorithm": "gp_mapelites",
+  "pop_size": 100,
+  "generations": 15,
+  "grid_size": 20,
+  "n_stocks": 50,
+  "n_days": 1132,
+  "tournament": 7,
+  "eval": "20d_fwd_returns, normalized, topk50_drop5"
+}
