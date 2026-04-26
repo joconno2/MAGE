@@ -335,6 +335,7 @@ The experimental evidence supports two findings:
 
 ```
 MAGE/
+    run_gp_baseline_and_eval.sh # One-command: GP baseline + test eval (S&P 500)
     alpha_factory/              # Core library
         __init__.py
         operators.py            # 33 operators (CS unary/binary, TS unary/binary)
@@ -346,10 +347,10 @@ MAGE/
         run_cluster.py          # Distributed experiments on Ray cluster
         eval_test_set.py        # Evaluate saved archive on held-out test set
         run_qlib.py             # Qlib dataset integration (CSI300/CSI500)
-        run_csi.sh              # One-command CSI experiment runner (setup, run, eval)
+        run_csi.sh              # One-command CSI experiment runner (setup, data, run)
         setup_qlib.py           # Qlib environment setup
     results/
-        mage_sp500_v2/          # Main result (gate=0.70, seed=42, 221 cells)
+        mage_sp500_v2/          # Main result (gate=0.70, seed=42, 221 cells, grid.pkl included)
         mage_seed{1,2,3}/       # Multi-seed robustness runs
         mage_gate_{060..095}/   # Correlation gate sweep
         gp_baseline_sp500_v2/   # GP baseline (seed=42, 10 runs)
@@ -367,104 +368,109 @@ MAGE/
 
 ## How to Run
 
-### 1. Clone and install
+### Setup
 
 ```bash
 git clone https://github.com/joconno2/MAGE.git
 cd MAGE
-pip install numpy scipy pandas yfinance matplotlib
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 ```
 
-Dependencies: `numpy`, `scipy`, `pandas`, `yfinance`, `matplotlib`. For cluster runs, also install `ray` and `aall_cluster`.
+Dependencies: `numpy`, `scipy`, `pandas`, `yfinance`, `matplotlib`. Python 3.10+.
 
-### 2. Run MAP-Elites (main contribution)
+### GP Baseline + Test Evaluation (S&P 500)
+
+Runs the GP baseline (10 independent runs, pop=200, 100 gens) and evaluates both the GP results and the included MAP-Elites archive on the held-out 2021-2022 test set. One script, no arguments needed.
 
 ```bash
-python experiments/run_gp_mapelites.py mapelites \
+./run_gp_baseline_and_eval.sh
+```
+
+This creates the venv if it doesn't exist, downloads S&P 500 data (cached after first run), runs the GP baseline, saves tree objects for test evaluation, then runs `eval_test_set.py` against both the GP trees and the MAP-Elites archive (`results/mage_sp500_v2/grid.pkl`, included in the repo).
+
+Takes 2-4 hours depending on your machine. Output:
+
+- `results/gp_baseline_final/result.json` -- train metrics per run
+- `results/gp_baseline_final/trees.pkl` -- pickled GP trees
+- `results/test_eval_final/gp_train.json`, `gp_val.json`, `gp_test.json` -- GP eval on each split
+- `results/test_eval_final/mapelites_test.json` -- MAP-Elites eval on test set
+
+### CSI300/CSI500 Experiments (Chinese Equities)
+
+For direct comparison to AlphaGen (KDD 2023) and AlphaForge (AAAI 2025). Uses AlphaGen's exact data protocol: train 2009-2018, val 2019, test 2020-2021.
+
+**Step 1: One-time setup.** Installs [Qlib](https://github.com/microsoft/qlib) and downloads CSI market data (~5GB).
+
+```bash
+./experiments/run_csi.sh setup
+```
+
+**Step 2: Run experiments.** Runs MAP-Elites (pop=200, 100 gens) and GP baseline (10 runs, 100 gens) on the chosen market.
+
+```bash
+# CSI300 (primary, matches AlphaGen)
+./experiments/run_csi.sh all --market csi300
+
+# CSI500 (secondary)
+./experiments/run_csi.sh all --market csi500
+```
+
+Or run MAP-Elites and GP separately:
+
+```bash
+./experiments/run_csi.sh mapelites --market csi300
+./experiments/run_csi.sh gp --market csi300
+```
+
+Output goes to `results/csi_csi300_mapelites/` and `results/csi_csi300_gp/`.
+
+Both scripts handle venv creation automatically.
+
+### Run MAP-Elites (S&P 500, manual)
+
+```bash
+.venv/bin/python experiments/run_gp_mapelites.py mapelites \
     --output results/my_run \
-    --pop 100 \
-    --gens 50 \
+    --pop 200 \
+    --gens 100 \
     --grid-size 20 \
     --n-stocks 500 \
     --corr-threshold 0.70
 ```
 
-This downloads S&P 500 OHLCV data (cached after first run), initializes 100 random GP trees, then runs 50 generations of MAP-Elites with correlation gate at 0.70. Output goes to `results/my_run/` with `checkpoint.json` (metrics and history) and `grid.pkl` (pickled archive with tree objects).
+Downloads S&P 500 OHLCV data (cached after first run), runs MAP-Elites with correlation gate at 0.70. Output: `checkpoint.json` (metrics) and `grid.pkl` (archive with tree objects).
 
-### 3. Run GP baseline
+### Evaluate on Test Set (manual)
 
 ```bash
-python experiments/run_gp_mapelites.py gp \
-    --output results/gp_run \
-    --pop 100 \
-    --gens 30 \
-    --n-runs 10
+.venv/bin/python experiments/eval_test_set.py \
+    --mapelites-grid results/mage_sp500_v2/grid.pkl \
+    --gp-result results/gp_baseline_final/result.json \
+    --n-stocks 500 \
+    --output results/test_eval
 ```
 
-Runs 10 independent GP evolutions with different seeds. Each run returns its single best alpha. Used to measure diversity collapse: how correlated are the best alphas across independent runs?
+Evaluates MAP-Elites archive and GP trees on train/val/test splits. Computes combined portfolio Sharpe (top-5/10/20) and pairwise signal correlations.
 
-### 4. Run random search baseline
-
-```bash
-python experiments/run_gp_mapelites.py random \
-    --output results/random_run \
-    --n-samples 5000
-```
-
-Generates and evaluates 5,000 random GP trees. Establishes a search-free baseline.
-
-### 5. Run on Ray cluster
+### Run on Ray Cluster
 
 ```bash
-python experiments/run_cluster.py mapelites \
+.venv/bin/python experiments/run_cluster.py mapelites \
     --output results/cluster_run \
     --pop 200 \
     --gens 100 \
     --corr-threshold 0.70
 ```
 
-Same algorithm, parallelized across a Ray cluster.
+Same algorithm, parallelized across a Ray cluster. Requires `ray` and `aall_cluster`.
 
-### 6. Evaluate on test set
-
-```bash
-python experiments/eval_test_set.py \
-    --mapelites-grid results/my_run/grid.pkl \
-    --output results/test_eval
-```
-
-Loads a saved MAP-Elites archive and evaluates the top alphas on the held-out test period (2021-2022). Also computes a combined alpha model (equal-weight average of top-N normalized alpha signals) and pairwise signal correlations.
-
-### 7. Run CSI300/CSI500 experiments (Chinese equities)
-
-For direct comparison to AlphaGen (KDD 2023) and AlphaForge (AAAI 2025):
+### Generate Figures
 
 ```bash
-# One-time setup: install Qlib + download CSI data (~5GB)
-./experiments/run_csi.sh setup
-
-# Run full experiment suite (MAP-Elites + GP baseline + test eval)
-./experiments/run_csi.sh all --market csi300
-
-# Or run individually
-./experiments/run_csi.sh mapelites --market csi300 --pop 200 --gens 100
-./experiments/run_csi.sh gp --market csi500
-```
-
-Uses AlphaGen's exact data protocol: train 2009-2018, val 2019, test 2020-2021 on CSI300/CSI500 constituents via [Qlib](https://github.com/microsoft/qlib).
-
-### 8. Generate figures
-
-```bash
-python scripts/generate_figures.py results/my_run/checkpoint.json
-# or use the included cluster run:
-python scripts/generate_figures.py results/mage_sp500_v2/checkpoint.json
-
-# Paper figures (gate sweep, train-vs-test, composition):
-python scripts/generate_paper_figures.py
-
-# 3D archive landscapes:
-python scripts/generate_3d_figures.py
+.venv/bin/python scripts/generate_figures.py results/mage_sp500_v2/checkpoint.json
+.venv/bin/python scripts/generate_paper_figures.py
+.venv/bin/python scripts/generate_3d_figures.py
 ```
 
 ---
