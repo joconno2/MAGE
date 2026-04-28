@@ -3,6 +3,10 @@ Alpha expression operators.
 
 Full operator set matching AlphaGen (KDD 2023) and Alpha101 (Kakushadze 2016).
 28 operators total: 4 CS-unary, 7 CS-binary, 15 TS-unary, 2 TS-binary.
+
+All TS operators accept both 1D (n_days,) and 2D (n_stocks, n_days) input.
+Operations apply along the last axis, so a single call on the full matrix
+replaces the previous per-stock Python loop.
 """
 
 import numpy as np
@@ -12,6 +16,32 @@ from scipy.stats import rankdata
 
 def _safe_div(a, b):
     return np.where(np.abs(b) < 1e-10, 0.0, a / b)
+
+
+def _rolling_moments(x, d, max_power=2):
+    """Compute rolling sums of x^1..x^max_power and valid count via cumsum.
+
+    Returns dict: {1: sum_x, 2: sum_x2, ...} and 'count' key for non-NaN count.
+    All arrays have NaN for warmup positions [0..d-2].
+    O(n) per power level, no 3D intermediate arrays.
+    """
+    xf = np.where(np.isnan(x), 0.0, x).astype(np.float64)
+    valid = (~np.isnan(x)).astype(np.float64)
+    zeros = np.zeros(x.shape[:-1] + (1,), dtype=np.float64)
+
+    def _rsum(arr):
+        cs = np.cumsum(arr, axis=-1)
+        out = np.full(x.shape, np.nan, dtype=np.float64)
+        out[..., d-1:] = cs[..., d-1:] - np.concatenate([zeros, cs[..., :-d]], axis=-1)
+        return out
+
+    result = {'count': _rsum(valid)}
+    xp = xf
+    for p in range(1, max_power + 1):
+        if p > 1:
+            xp = xp * xf
+        result[p] = _rsum(xp)
+    return result
 
 
 # ── Cross-sectional unary (operate on all stocks for one day) ──────────
@@ -39,149 +69,186 @@ def cs_greater(x, y): return np.maximum(x, y)
 def cs_less(x, y): return np.minimum(x, y)
 
 
-# ── Time-series unary (operate on one stock across days) ───────────────
+# ── Time-series unary (operate along last axis: days) ──────────────────
 
 def ts_ref(x, d):
     """Value d days ago."""
+    n = x.shape[-1]
     out = np.full_like(x, np.nan)
-    if 0 < d < len(x):
-        out[d:] = x[:-d]
+    if 0 < d < n:
+        out[..., d:] = x[..., :-d]
     return out
 
 def ts_delta(x, d):
     return x - ts_ref(x, d)
 
 def ts_mean(x, d):
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    cs = np.nancumsum(x)
-    out[d-1:] = (cs[d-1:] - np.concatenate([[0], cs[:-d]])) / d
+    cs = np.nancumsum(x, axis=-1)
+    zeros = np.zeros(x.shape[:-1] + (1,), dtype=x.dtype)
+    out[..., d-1:] = (cs[..., d-1:] - np.concatenate([zeros, cs[..., :-d]], axis=-1)) / d
     return out
 
 def ts_med(x, d):
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nanmedian(w, axis=1)
+    w = sliding_window_view(x, d, axis=-1)
+    out[..., d-1:] = np.nanmedian(w, axis=-1)
     return out
 
 def ts_sum(x, d):
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    cs = np.nancumsum(x)
-    out[d-1:] = cs[d-1:] - np.concatenate([[0], cs[:-d]])
+    cs = np.nancumsum(x, axis=-1)
+    zeros = np.zeros(x.shape[:-1] + (1,), dtype=x.dtype)
+    out[..., d-1:] = cs[..., d-1:] - np.concatenate([zeros, cs[..., :-d]], axis=-1)
     return out
 
 def ts_std(x, d):
-    if d <= 1 or d > len(x): return np.full_like(x, np.nan)
-    out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nanstd(w, axis=1)
+    n = x.shape[-1]
+    if d <= 1 or d > n: return np.full_like(x, np.nan)
+    m = _rolling_moments(x, d, max_power=2)
+    cnt = np.maximum(m['count'], 1.0)
+    mean = m[1] / cnt
+    var = m[2] / cnt - mean ** 2
+    out = np.sqrt(np.maximum(var, 0.0))
+    out = np.where(m['count'] >= 2, out, np.nan)
     return out
 
 def ts_var(x, d):
-    if d <= 1 or d > len(x): return np.full_like(x, np.nan)
-    out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nanvar(w, axis=1)
+    n = x.shape[-1]
+    if d <= 1 or d > n: return np.full_like(x, np.nan)
+    m = _rolling_moments(x, d, max_power=2)
+    cnt = np.maximum(m['count'], 1.0)
+    mean = m[1] / cnt
+    var = m[2] / cnt - mean ** 2
+    out = np.maximum(var, 0.0)
+    out = np.where(m['count'] >= 2, out, np.nan)
     return out
 
 def ts_skew(x, d):
-    if d <= 2 or d > len(x): return np.full_like(x, np.nan)
-    out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    m = np.nanmean(w, axis=1, keepdims=True)
-    s = np.nanstd(w, axis=1, keepdims=True)
-    s = np.where(s < 1e-10, 1.0, s)
-    z = (w - m) / s
-    out[d-1:] = np.nanmean(z ** 3, axis=1)
+    n = x.shape[-1]
+    if d <= 2 or d > n: return np.full_like(x, np.nan)
+    m = _rolling_moments(x, d, max_power=3)
+    cnt = np.maximum(m['count'], 1.0)
+    m1 = m[1] / cnt
+    m2 = m[2] / cnt
+    m3 = m[3] / cnt
+    var = m2 - m1 ** 2
+    var = np.maximum(var, 0.0)
+    std = np.sqrt(var)
+    # skew = (m3 - 3*m1*m2 + 2*m1^3) / std^3
+    num = m3 - 3.0 * m1 * m2 + 2.0 * m1 ** 3
+    denom = np.where(std < 1e-10, 1.0, std ** 3)
+    out = np.where(std < 1e-10, 0.0, num / denom)
+    out = np.where(m['count'] >= 3, out, np.nan)
     return out
 
 def ts_kurt(x, d):
-    if d <= 3 or d > len(x): return np.full_like(x, np.nan)
-    out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    m = np.nanmean(w, axis=1, keepdims=True)
-    s = np.nanstd(w, axis=1, keepdims=True)
-    s = np.where(s < 1e-10, 1.0, s)
-    z = (w - m) / s
-    out[d-1:] = np.nanmean(z ** 4, axis=1) - 3.0
+    n = x.shape[-1]
+    if d <= 3 or d > n: return np.full_like(x, np.nan)
+    m = _rolling_moments(x, d, max_power=4)
+    cnt = np.maximum(m['count'], 1.0)
+    m1 = m[1] / cnt
+    m2 = m[2] / cnt
+    m3 = m[3] / cnt
+    m4 = m[4] / cnt
+    var = m2 - m1 ** 2
+    var = np.maximum(var, 0.0)
+    # kurt = (m4 - 4*m1*m3 + 6*m1^2*m2 - 3*m1^4) / var^2 - 3
+    num = m4 - 4.0 * m1 * m3 + 6.0 * m1 ** 2 * m2 - 3.0 * m1 ** 4
+    var2 = np.where(var < 1e-10, 1.0, var ** 2)
+    out = np.where(var < 1e-10, 0.0, num / var2 - 3.0)
+    out = np.where(m['count'] >= 4, out, np.nan)
     return out
 
 def ts_max(x, d):
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nanmax(w, axis=1)
+    w = sliding_window_view(x, d, axis=-1)
+    out[..., d-1:] = np.nanmax(w, axis=-1)
     return out
 
 def ts_min(x, d):
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nanmin(w, axis=1)
+    w = sliding_window_view(x, d, axis=-1)
+    out[..., d-1:] = np.nanmin(w, axis=-1)
     return out
 
 def ts_mad(x, d):
     """Mean absolute deviation."""
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    means = np.nanmean(w, axis=1, keepdims=True)
-    out[d-1:] = np.nanmean(np.abs(w - means), axis=1)
+    w = sliding_window_view(x, d, axis=-1)
+    means = np.nanmean(w, axis=-1, keepdims=True)
+    out[..., d-1:] = np.nanmean(np.abs(w - means), axis=-1)
     return out
 
 def ts_rank(x, d):
     """Percentile rank of current value in d-day window."""
-    if d <= 1 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 1 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    # Vectorized: count how many values in each window are <= the last value
-    last_vals = w[:, -1:]  # (n_windows, 1)
-    out[d-1:] = np.nanmean(w <= last_vals, axis=1)
+    w = sliding_window_view(x, d, axis=-1)
+    last_vals = w[..., -1:]
+    out[..., d-1:] = np.nanmean(w <= last_vals, axis=-1)
     return out
 
 def ts_wma(x, d):
     """Weighted moving average with linearly decaying weights."""
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     weights = np.arange(1, d + 1, dtype=np.float64)
     weights /= weights.sum()
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nansum(w * weights, axis=1)
+    w = sliding_window_view(x, d, axis=-1)
+    out[..., d-1:] = np.nansum(w * weights, axis=-1)
     return out
 
 def ts_ema(x, d):
-    """Exponential moving average. Uses pandas for vectorized EWM."""
+    """Exponential moving average."""
     if d <= 0: return np.full_like(x, np.nan)
     import pandas as pd
-    return pd.Series(x).ewm(span=d, min_periods=1).mean().values
+    if x.ndim == 1:
+        return pd.Series(x).ewm(span=d, min_periods=1).mean().values
+    # 2D: pandas DataFrame ewm applies per-column, so transpose
+    return pd.DataFrame(x.T).ewm(span=d, min_periods=1).mean().values.T
 
 
 # ── Time-series binary ─────────────────────────────────────────────────
 
 def ts_corr(x, y, d):
-    if d <= 2 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 2 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    wx = sliding_window_view(x, d)
-    wy = sliding_window_view(y, d)
-    mx = np.nanmean(wx, axis=1, keepdims=True)
-    my = np.nanmean(wy, axis=1, keepdims=True)
-    sx = np.nanstd(wx, axis=1)
-    sy = np.nanstd(wy, axis=1)
-    cov = np.nanmean((wx - mx) * (wy - my), axis=1)
+    wx = sliding_window_view(x, d, axis=-1)
+    wy = sliding_window_view(y, d, axis=-1)
+    mx = np.nanmean(wx, axis=-1, keepdims=True)
+    my = np.nanmean(wy, axis=-1, keepdims=True)
+    sx = np.nanstd(wx, axis=-1)
+    sy = np.nanstd(wy, axis=-1)
+    cov = np.nanmean((wx - mx) * (wy - my), axis=-1)
     denom = sx * sy
-    out[d-1:] = np.where(denom < 1e-10, 0.0, cov / denom)
+    out[..., d-1:] = np.where(denom < 1e-10, 0.0, cov / denom)
     return out
 
 def ts_cov(x, y, d):
-    if d <= 2 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 2 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    wx = sliding_window_view(x, d)
-    wy = sliding_window_view(y, d)
-    mx = np.nanmean(wx, axis=1, keepdims=True)
-    my = np.nanmean(wy, axis=1, keepdims=True)
-    out[d-1:] = np.nanmean((wx - mx) * (wy - my), axis=1)
+    wx = sliding_window_view(x, d, axis=-1)
+    wy = sliding_window_view(y, d, axis=-1)
+    mx = np.nanmean(wx, axis=-1, keepdims=True)
+    my = np.nanmean(wy, axis=-1, keepdims=True)
+    out[..., d-1:] = np.nanmean((wx - mx) * (wy - my), axis=-1)
     return out
 
 
@@ -189,38 +256,41 @@ def ts_cov(x, y, d):
 
 def ts_argmax(x, d):
     """Index of max value in d-day window (0 = oldest, d-1 = newest)."""
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nanargmax(w, axis=1).astype(np.float64)
+    w = sliding_window_view(x, d, axis=-1)
+    out[..., d-1:] = np.nanargmax(w, axis=-1).astype(np.float64)
     return out
 
 def ts_argmin(x, d):
     """Index of min value in d-day window (0 = oldest, d-1 = newest)."""
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nanargmin(w, axis=1).astype(np.float64)
+    w = sliding_window_view(x, d, axis=-1)
+    out[..., d-1:] = np.nanargmin(w, axis=-1).astype(np.float64)
     return out
 
 def ts_product(x, d):
     """Rolling product over d days."""
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     out = np.full_like(x, np.nan)
-    # Clip to avoid overflow
     xc = np.clip(x, -10, 10)
-    w = sliding_window_view(xc, d)
-    out[d-1:] = np.nanprod(w, axis=1)
+    w = sliding_window_view(xc, d, axis=-1)
+    out[..., d-1:] = np.nanprod(w, axis=-1)
     return out
 
 def ts_decay_linear(x, d):
     """Linearly decaying weighted average (most recent = weight d, oldest = weight 1)."""
-    if d <= 0 or d > len(x): return np.full_like(x, np.nan)
+    n = x.shape[-1]
+    if d <= 0 or d > n: return np.full_like(x, np.nan)
     weights = np.arange(1, d + 1, dtype=np.float64)
     weights /= weights.sum()
     out = np.full_like(x, np.nan)
-    w = sliding_window_view(x, d)
-    out[d-1:] = np.nansum(w * weights, axis=1)
+    w = sliding_window_view(x, d, axis=-1)
+    out[..., d-1:] = np.nansum(w * weights, axis=-1)
     return out
 
 

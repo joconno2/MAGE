@@ -5,7 +5,8 @@ Run GP baseline (10 runs, saves tree objects) then evaluate on test set.
 Usage (any OS):
     python run_gp_baseline_and_eval.py
 
-Takes ~2-4 hours on a modern multi-core machine (10 independent GP runs,
+GP runs execute in parallel across CPU cores. Wall time depends on core count:
+~2h on 8+ cores, ~6h on 4 cores, ~15h single-threaded (10 independent GP runs,
 pop=200, 100 gens each, S&P 500 with 467 stocks). Data downloads
 automatically on first run and is cached for the test eval step.
 

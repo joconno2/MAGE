@@ -37,20 +37,26 @@ def normalize_alpha(signals: np.ndarray) -> np.ndarray:
     Input: (n_stocks, n_days)
     """
     out = signals.copy()
-    for t in range(out.shape[1]):
-        col = out[:, t]
-        valid = ~np.isnan(col)
-        if valid.sum() < 2:
-            out[:, t] = 0.0
-            continue
-        m = np.nanmean(col)
-        col_centered = col - m
-        norm = np.sqrt(np.nansum(col_centered[valid] ** 2))
-        if norm < 1e-10:
-            out[:, t] = 0.0
-        else:
-            out[:, t] = col_centered / norm
-            out[~valid, t] = 0.0
+    valid = ~np.isnan(out)
+    n_valid = valid.sum(axis=0)
+
+    # Days with fewer than 2 valid stocks get zeroed
+    degenerate = n_valid < 2
+    out[:, degenerate] = 0.0
+
+    # Center: subtract per-day mean (ignoring NaN)
+    means = np.nanmean(out, axis=0, keepdims=True)
+    out = out - means
+
+    # L2 norm per day
+    sq = np.where(valid, out ** 2, 0.0)
+    norms = np.sqrt(sq.sum(axis=0, keepdims=True))
+    norms = np.where(norms < 1e-10, 1.0, norms)
+    out = out / norms
+
+    # Zero out NaN positions and degenerate days
+    out[~valid] = 0.0
+    out[:, degenerate] = 0.0
     return out
 
 
@@ -85,24 +91,64 @@ def compute_ic_series(
         signals = normalize_alpha(signals)
 
     n_stocks, n_days = signals.shape
-    ics = np.full(n_days, np.nan)
-    rank_ics = np.full(n_days, np.nan)
 
-    for t in range(n_days):
-        sig = signals[:, t]
-        ret = forward_returns[:, t]
-        valid = ~(np.isnan(sig) | np.isnan(ret))
-        if valid.sum() < 10:
-            continue
+    # Mask invalid positions
+    valid = ~(np.isnan(signals) | np.isnan(forward_returns))
+    n_valid = valid.sum(axis=0)
 
-        s, r = sig[valid], ret[valid]
-        ic = np.corrcoef(s, r)[0, 1]
-        if not np.isnan(ic):
-            ics[t] = ic
+    # Zero out invalid positions for vectorized correlation
+    sig = np.where(valid, signals, 0.0)
+    ret = np.where(valid, forward_returns, 0.0)
 
-        rho, _ = spearmanr(s, r)
-        if not np.isnan(rho):
-            rank_ics[t] = rho
+    # Per-day means (only over valid stocks)
+    n_safe = np.maximum(n_valid, 1).astype(np.float64)
+    sig_mean = sig.sum(axis=0) / n_safe
+    ret_mean = ret.sum(axis=0) / n_safe
+
+    # Center
+    sig_c = sig - sig_mean[np.newaxis, :]
+    ret_c = ret - ret_mean[np.newaxis, :]
+    sig_c[~valid] = 0.0
+    ret_c[~valid] = 0.0
+
+    # Pearson IC: cov / (std_sig * std_ret)
+    cov = (sig_c * ret_c).sum(axis=0) / n_safe
+    sig_var = (sig_c ** 2).sum(axis=0) / n_safe
+    ret_var = (ret_c ** 2).sum(axis=0) / n_safe
+    denom = np.sqrt(sig_var * ret_var)
+    ics = np.where((denom > 1e-10) & (n_valid >= 10), cov / denom, np.nan)
+
+    # Rank IC via argsort-based ranking on full matrix (no per-day loop)
+    # Set invalid positions to -inf so they sort to bottom, then mask after
+    sig_for_rank = np.where(valid, signals, -np.inf)
+    ret_for_rank = np.where(valid, forward_returns, -np.inf)
+
+    # argsort along axis=0 (across stocks for each day)
+    sig_order = np.argsort(sig_for_rank, axis=0)
+    ret_order = np.argsort(ret_for_rank, axis=0)
+
+    # Assign ranks via fancy indexing
+    sig_ranked = np.empty_like(signals, dtype=np.float64)
+    ret_ranked = np.empty_like(forward_returns, dtype=np.float64)
+    day_idx = np.arange(n_days)[np.newaxis, :]
+    row_ranks = np.arange(1, n_stocks + 1, dtype=np.float64)[:, np.newaxis]
+    sig_ranked[sig_order, day_idx] = row_ranks
+    ret_ranked[ret_order, day_idx] = row_ranks
+
+    # Mask invalid positions
+    sig_ranked[~valid] = 0.0
+    ret_ranked[~valid] = 0.0
+
+    # Pearson on ranks = Spearman
+    sr_mean = sig_ranked.sum(axis=0) / n_safe
+    rr_mean = ret_ranked.sum(axis=0) / n_safe
+    sr_c = sig_ranked - sr_mean[np.newaxis, :]
+    rr_c = ret_ranked - rr_mean[np.newaxis, :]
+    sr_c[~valid] = 0.0
+    rr_c[~valid] = 0.0
+    r_cov = (sr_c * rr_c).sum(axis=0) / n_safe
+    r_denom = np.sqrt((sr_c ** 2).sum(axis=0) / n_safe * (rr_c ** 2).sum(axis=0) / n_safe)
+    rank_ics = np.where((r_denom > 1e-10) & (n_valid >= 10), r_cov / r_denom, np.nan)
 
     return ics, rank_ics
 
@@ -129,30 +175,33 @@ def long_short_backtest(
     """
     n_stocks, n_days = signals.shape
     k = max(1, int(n_stocks * quantile))
-    daily_returns = []
 
-    for t in range(n_days - 1):
-        sig = signals[:, t]
-        ret = forward_returns_1d[:, t]
+    # Work on all days except the last (no forward return)
+    sig = signals[:, :-1]          # (n_stocks, n_days-1)
+    ret = forward_returns_1d[:, :-1]
 
-        valid = ~(np.isnan(sig) | np.isnan(ret))
-        if valid.sum() < k * 2:
-            daily_returns.append(0.0)
-            continue
+    valid = ~(np.isnan(sig) | np.isnan(ret))
+    n_valid = valid.sum(axis=0)
 
-        # Mask invalid
-        sig_v = np.where(valid, sig, -np.inf)
-        ret_v = np.where(valid, ret, 0.0)
+    # Mask invalid signals to -inf so they sort to bottom
+    sig_v = np.where(valid, sig, -np.inf)
+    ret_v = np.where(valid, ret, 0.0)
 
-        ranked = np.argsort(sig_v)
-        long_idx = ranked[-k:]    # top k
-        short_idx = ranked[:k]    # bottom k
+    # argsort each day (along stocks axis)
+    ranked = np.argsort(sig_v, axis=0)  # (n_stocks, n_days-1)
 
-        long_ret = np.mean(ret_v[long_idx])
-        short_ret = np.mean(ret_v[short_idx])
-        daily_returns.append(long_ret - short_ret)
+    # Top-k and bottom-k indices per day
+    long_idx = ranked[-k:]    # (k, n_days-1)
+    short_idx = ranked[:k]    # (k, n_days-1)
 
-    daily_returns = np.array(daily_returns)
+    # Gather returns for long and short legs
+    days = np.arange(sig.shape[1])[np.newaxis, :]  # (1, n_days-1)
+    long_ret = ret_v[long_idx, days].mean(axis=0)
+    short_ret = ret_v[short_idx, days].mean(axis=0)
+
+    daily_returns = long_ret - short_ret
+    # Zero out days with insufficient valid stocks
+    daily_returns = np.where(n_valid >= k * 2, daily_returns, 0.0)
 
     if len(daily_returns) == 0 or np.std(daily_returns) < 1e-10:
         return {"daily_returns": daily_returns, "sharpe": 0.0,
@@ -221,14 +270,21 @@ def evaluate_signals(
     norm_signals = normalize_alpha(signals)
     bt = long_short_backtest(norm_signals, forward_returns_1d)
 
-    # Turnover from normalized signals
-    daily_positions = []
-    for t in range(signals.shape[1]):
-        sig_t = norm_signals[:, t]
-        ranked = rankdata(sig_t, nan_policy="omit") / max(np.sum(~np.isnan(sig_t)), 1)
-        daily_positions.append(ranked)
-    pos = np.array(daily_positions)
-    turnover = float(np.nanmean(np.abs(np.diff(pos, axis=0)))) if len(daily_positions) > 1 else 0.0
+    # Turnover from normalized signals (vectorized argsort ranking)
+    n_stocks_t, n_days_t = norm_signals.shape
+    valid_t = ~np.isnan(norm_signals)
+    n_valid_per_day = valid_t.sum(axis=0)
+    n_valid_safe = np.maximum(n_valid_per_day, 1).astype(np.float64)
+
+    sig_for_rank = np.where(valid_t, norm_signals, -np.inf)
+    order = np.argsort(sig_for_rank, axis=0)
+    ranks = np.empty_like(norm_signals, dtype=np.float64)
+    day_idx_t = np.arange(n_days_t)[np.newaxis, :]
+    row_ranks_t = np.arange(1, n_stocks_t + 1, dtype=np.float64)[:, np.newaxis]
+    ranks[order, day_idx_t] = row_ranks_t
+    # Normalize to [0, 1] per day
+    pos = (ranks / n_valid_safe[np.newaxis, :]).T  # (n_days, n_stocks)
+    turnover = float(np.nanmean(np.abs(np.diff(pos, axis=0)))) if n_days_t > 1 else 0.0
 
     # Market correlation
     market_ret = np.nanmean(forward_returns_20d, axis=0)

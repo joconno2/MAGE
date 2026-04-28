@@ -289,7 +289,61 @@ def run_mapelites(args):
 
 # ── GP baseline ────────────────────────────────────────────────────────
 
+def _run_single_gp(run_args):
+    """Run a single GP evolution. Designed for multiprocessing.Pool."""
+    run_idx, seed, pop_size, n_gens, tournament, train = run_args
+
+    rng = random.Random(seed)
+    pop = [random_tree(max_depth=4, rng=rng) for _ in range(pop_size)]
+    pop_fitness = []
+    for tree in pop:
+        m = _eval(tree, train)
+        pop_fitness.append(m.sharpe if m.valid else -999)
+
+    for gen in range(n_gens):
+        new_pop = []
+        new_fitness = []
+        for _ in range(pop_size):
+            if rng.random() < 0.7:
+                candidates = rng.sample(range(len(pop)), min(tournament, len(pop)))
+                winner = max(candidates, key=lambda i: pop_fitness[i])
+                child = mutate(pop[winner], rng=rng)
+            else:
+                c1 = rng.sample(range(len(pop)), min(tournament, len(pop)))
+                c2 = rng.sample(range(len(pop)), min(tournament, len(pop)))
+                p1 = pop[max(c1, key=lambda i: pop_fitness[i])]
+                p2 = pop[max(c2, key=lambda i: pop_fitness[i])]
+                child = crossover(p1, p2, rng=rng)
+
+            m = _eval(child, train)
+            new_pop.append(child)
+            new_fitness.append(m.sharpe if m.valid else -999)
+
+        pop = new_pop
+        pop_fitness = new_fitness
+
+    best_idx = int(np.argmax(pop_fitness))
+    best_tree = pop[best_idx]
+    best_m = _eval(best_tree, train)
+    signals = compute_signals(best_tree, train["stock_data"], train["n_days"])
+
+    return {
+        "run": run_idx,
+        "sharpe": best_m.sharpe,
+        "ic": best_m.ic,
+        "rank_ic": best_m.rank_ic,
+        "icir": best_m.icir,
+        "annual_return": best_m.annual_return,
+        "turnover": best_m.turnover,
+        "expression": str(best_tree),
+        "tree": best_tree,
+        "signals_flat": signals.flatten(),
+    }
+
+
 def run_gp_baseline(args):
+    import multiprocessing as mp
+
     raw = download_ohlcv(SP500_TICKERS[:args.n_stocks])
     splits = prepare_eval_data(raw)
     train = splits["train"]
@@ -299,9 +353,6 @@ def run_gp_baseline(args):
     output_dir.mkdir(parents=True, exist_ok=True)
 
     n_runs = args.n_runs
-    all_results = []
-    all_trees = []
-    all_signals = []
 
     config = {
         "algorithm": "gp_baseline",
@@ -315,64 +366,44 @@ def run_gp_baseline(args):
     }
     (output_dir / "config.json").write_text(json.dumps(config, indent=2))
 
-    print(f"\nGP baseline | pop={args.pop} gens={args.gens} runs={n_runs}")
+    # Build worker args
+    worker_args = [
+        (run, args.seed + run, args.pop, args.gens, args.tournament, train)
+        for run in range(n_runs)
+    ]
+
+    n_workers = min(n_runs, max(1, mp.cpu_count() - 1))
+    print(f"\nGP baseline | pop={args.pop} gens={args.gens} runs={n_runs} workers={n_workers}")
     print(f"Output: {output_dir}\n")
 
-    for run in range(n_runs):
-        t0 = time.monotonic()
-        rng = random.Random(args.seed + run)
+    t0_all = time.monotonic()
 
-        pop = [random_tree(max_depth=4, rng=rng) for _ in range(args.pop)]
-        pop_fitness = []
-        for tree in pop:
-            m = _eval(tree, train)
-            pop_fitness.append(m.sharpe if m.valid else -999)
+    if n_workers > 1:
+        with mp.Pool(n_workers) as pool:
+            results = []
+            for res in pool.imap_unordered(_run_single_gp, worker_args):
+                dur_so_far = time.monotonic() - t0_all
+                print(f"  Run {res['run']+1}/{n_runs}: Sharpe={res['sharpe']:.2f} "
+                      f"IC={res['ic']:.4f} ICIR={res['icir']:.2f} "
+                      f"t={dur_so_far:.0f}s | {res['expression'][:50]}")
+                results.append(res)
+    else:
+        results = []
+        for wa in worker_args:
+            res = _run_single_gp(wa)
+            dur = time.monotonic() - t0_all
+            print(f"  Run {res['run']+1}/{n_runs}: Sharpe={res['sharpe']:.2f} "
+                  f"IC={res['ic']:.4f} ICIR={res['icir']:.2f} "
+                  f"dt={dur:.0f}s | {res['expression'][:50]}")
+            results.append(res)
 
-        for gen in range(args.gens):
-            new_pop = []
-            new_fitness = []
-            for _ in range(args.pop):
-                if rng.random() < 0.7:
-                    candidates = rng.sample(range(len(pop)), min(args.tournament, len(pop)))
-                    winner = max(candidates, key=lambda i: pop_fitness[i])
-                    child = mutate(pop[winner], rng=rng)
-                else:
-                    c1 = rng.sample(range(len(pop)), min(args.tournament, len(pop)))
-                    c2 = rng.sample(range(len(pop)), min(args.tournament, len(pop)))
-                    p1 = pop[max(c1, key=lambda i: pop_fitness[i])]
-                    p2 = pop[max(c2, key=lambda i: pop_fitness[i])]
-                    child = crossover(p1, p2, rng=rng)
+    # Sort by run index
+    results.sort(key=lambda r: r["run"])
 
-                m = _eval(child, train)
-                new_pop.append(child)
-                new_fitness.append(m.sharpe if m.valid else -999)
-
-            pop = new_pop
-            pop_fitness = new_fitness
-
-        best_idx = int(np.argmax(pop_fitness))
-        best_tree = pop[best_idx]
-        best_m = _eval(best_tree, train)
-        dur = time.monotonic() - t0
-
-        all_results.append({
-            "run": run,
-            "sharpe": best_m.sharpe,
-            "ic": best_m.ic,
-            "rank_ic": best_m.rank_ic,
-            "icir": best_m.icir,
-            "annual_return": best_m.annual_return,
-            "turnover": best_m.turnover,
-            "expression": str(best_tree),
-        })
-        all_trees.append(best_tree)
-
-        # Store signals for pairwise correlation
-        signals = compute_signals(best_tree, train["stock_data"], train["n_days"])
-        all_signals.append(signals.flatten())
-
-        print(f"  Run {run+1}/{n_runs}: Sharpe={best_m.sharpe:.2f} IC={best_m.ic:.4f} "
-              f"ICIR={best_m.icir:.2f} dt={dur:.0f}s | {str(best_tree)[:50]}")
+    all_results = [{k: v for k, v in r.items() if k not in ("tree", "signals_flat")}
+                   for r in results]
+    all_trees = [r["tree"] for r in results]
+    all_signals = [r["signals_flat"] for r in results]
 
     # Pairwise correlation
     sig_matrix = np.array(all_signals)
@@ -387,9 +418,11 @@ def run_gp_baseline(args):
         mean_corr = median_corr = 0.0
 
     unique = len(set(r["expression"] for r in all_results))
+    total_dur = time.monotonic() - t0_all
 
     print(f"\nMean pairwise corr: {mean_corr:.3f}, Unique: {unique}/{n_runs}")
     print(f"Best Sharpe: {max(r['sharpe'] for r in all_results):.2f}")
+    print(f"Total wall time: {total_dur:.0f}s ({total_dur/3600:.1f}h)")
 
     summary = {
         "runs": all_results,
@@ -398,6 +431,8 @@ def run_gp_baseline(args):
         "unique_programs": unique,
         "best_sharpe": max(r["sharpe"] for r in all_results),
         "mean_sharpe": float(np.mean([r["sharpe"] for r in all_results])),
+        "wall_time_s": total_dur,
+        "n_workers": n_workers,
     }
     (output_dir / "result.json").write_text(json.dumps(summary, indent=2))
 

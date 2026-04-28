@@ -305,7 +305,7 @@ def _eval_node_matrix(
         except Exception:
             return None
 
-    # TS operator: recurse children as matrices, apply per-stock (row)
+    # TS operator: recurse children as matrices, apply on full (n_stocks, n_days) matrix
     child_mats = []
     for c in node.children:
         m = _eval_node_matrix(c, stock_data, tickers, n_days)
@@ -318,25 +318,23 @@ def _eval_node_matrix(
         return None
 
     _, arity, func, has_param, _ = op_entry
-    result = np.full((n_stocks, n_days), np.nan)
-    for i in range(n_stocks):
-        try:
-            if has_param:
-                if arity == 1:
-                    row = func(child_mats[0][i], node.param)
-                else:
-                    row = func(child_mats[0][i], child_mats[1][i], node.param)
+    try:
+        if has_param:
+            if arity == 1:
+                result = func(child_mats[0], node.param)
             else:
-                if arity == 1:
-                    row = func(child_mats[0][i])
-                else:
-                    row = func(child_mats[0][i], child_mats[1][i])
-            if row is not None and len(row) >= n_days:
-                result[i] = row[:n_days]
-        except Exception:
-            pass
+                result = func(child_mats[0], child_mats[1], node.param)
+        else:
+            if arity == 1:
+                result = func(child_mats[0])
+            else:
+                result = func(child_mats[0], child_mats[1])
+        if result is not None and result.shape[-1] >= n_days:
+            return result[..., :n_days]
+    except Exception:
+        pass
 
-    return result
+    return np.full((n_stocks, n_days), np.nan)
 
 
 def compute_signals(

@@ -374,7 +374,7 @@ python run_gp_baseline_and_eval.py
 
 This creates the venv if it doesn't exist, downloads S&P 500 data (cached after first run), runs the GP baseline, saves tree objects for test evaluation, then runs `eval_test_set.py` against both the GP trees and the MAP-Elites archive (`results/mage_sp500_v2/grid.pkl`, included in the repo).
 
-Takes 2-4 hours depending on your machine. Output:
+GP runs execute in parallel across CPU cores. Wall time: ~2h on 8+ cores, ~6h on 4 cores. Output:
 
 - `results/gp_baseline_final/result.json` -- train metrics per run
 - `results/gp_baseline_final/trees.pkl` -- pickled GP trees
