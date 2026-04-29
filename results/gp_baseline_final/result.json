@@ -1,0 +1,111 @@
+{
+  "runs": [
+    {
+      "run": 0,
+      "sharpe": 3.5136050115401174,
+      "ic": 0.02023079841559526,
+      "rank_ic": 0.034573031240191364,
+      "icir": 0.26760019286336795,
+      "annual_return": 0.20500763493563867,
+      "turnover": 0.20822117353424766,
+      "expression": "div(div(div(pow(upper_shadow, ts_med(turnover_ratio, 31)), div(high, greater(turnover_ratio, returns))), ts_med(cs_rank(volume), 33)), intraday_range)"
+    },
+    {
+      "run": 1,
+      "sharpe": 3.527252026671973,
+      "ic": 0.020094049811987844,
+      "rank_ic": 0.029471857697271096,
+      "icir": 0.23745576638138308,
+      "annual_return": 0.2094536196075254,
+      "turnover": 0.224001369131159,
+      "expression": "div(div(div(mul(turnover_ratio, upper_shadow), ts_ref(cs_rank(close), 1)), intraday_range), cs_rank(greater(ts_min(volume, 56), pow(close, div(open, log_return)))))"
+    },
+    {
+      "run": 2,
+      "sharpe": 3.6295309270470595,
+      "ic": 0.00990056670549664,
+      "rank_ic": 0.029798084522704507,
+      "icir": 0.2017949855198145,
+      "annual_return": 0.18197149618978425,
+      "turnover": 0.21020895522007096,
+      "expression": "greater(cs_log(div(div(ts_min(log_return, 7), returns), div(cs_log(dollar_volume), close))), add(div(div(turnover_ratio, intraday_range), high), mul(cs_abs(less(upper_shadow, close)), div(turnover_ratio, intraday_range))))"
+    },
+    {
+      "run": 3,
+      "sharpe": 3.0210258082042167,
+      "ic": -0.0004714134712980174,
+      "rank_ic": 0.03324821782539885,
+      "icir": -0.007276722151081776,
+      "annual_return": 0.18214939874987257,
+      "turnover": 0.1365880037648919,
+      "expression": "pow(pow(pow(sub(ts_skew(upper_shadow, 7), dollar_volume), div(sub(close, turnover_ratio), low)), close), div(sub(sub(close, less(turnover_ratio, close)), cs_log(cs_rank(upper_shadow))), low))"
+    },
+    {
+      "run": 4,
+      "sharpe": 3.546950674484493,
+      "ic": -0.014595969651349934,
+      "rank_ic": 0.028694991630470172,
+      "icir": -0.3467589742642182,
+      "annual_return": 0.19888500461859038,
+      "turnover": 0.2289223323722499,
+      "expression": "div(div(div(upper_shadow, ts_ref(cs_rank(volume), 19)), ts_std(vwap, 4)), add(div(ts_cov(turnover_ratio, low, 60), ts_sum(ts_argmax(low, 51), 26)), ts_rank(add(intraday_range, ts_rank(gap, 3)), 11)))"
+    },
+    {
+      "run": 5,
+      "sharpe": 3.368434696355943,
+      "ic": 0.023436707553431812,
+      "rank_ic": 0.023920840930921658,
+      "icir": 0.2947806330148773,
+      "annual_return": 0.197626972608701,
+      "turnover": 0.24753835564988622,
+      "expression": "mul(mul(upper_shadow, div(sub(turnover_ratio, ts_min(intraday_range, 28)), mul(intraday_range, cs_rank(close)))), div(sub(turnover_ratio, ts_min(intraday_range, 26)), mul(intraday_range, ts_rank(gap, 4))))"
+    },
+    {
+      "run": 6,
+      "sharpe": 2.9608615895066515,
+      "ic": -0.012741790456897542,
+      "rank_ic": 0.02932420262437029,
+      "icir": -0.2245469448397773,
+      "annual_return": 0.1994403409668113,
+      "turnover": 0.20615887870462574,
+      "expression": "pow(pow(sub(low, less(ts_decay_linear(dollar_volume, 25), close)), cs_abs(cs_scale(pow(turnover_ratio, turnover_ratio)))), div(upper_shadow, ts_ema(ts_mad(vwap, 4), 60)))"
+    },
+    {
+      "run": 7,
+      "sharpe": 2.9894795406850405,
+      "ic": -0.00040866373555506816,
+      "rank_ic": 0.020324192272879942,
+      "icir": -0.008108255437282563,
+      "annual_return": 0.15852075330228899,
+      "turnover": 0.17397601196374432,
+      "expression": "sub(add(low, pow(turnover_ratio, mul(ts_sum(low, 4), upper_shadow))), vwap)"
+    },
+    {
+      "run": 8,
+      "sharpe": 3.328634014221617,
+      "ic": 0.0029322962837465163,
+      "rank_ic": 0.027636678582674257,
+      "icir": 0.051587785290714255,
+      "annual_return": 0.19176596317336392,
+      "turnover": 0.238604541471282,
+      "expression": "div(upper_shadow, mul(add(greater(returns, lower_shadow), ts_mean(ts_product(upper_shadow, 5), 5)), greater(div(dollar_volume, log_return), mul(ts_product(high, 9), ts_ref(dollar_volume, 4)))))"
+    },
+    {
+      "run": 9,
+      "sharpe": 3.184507647224,
+      "ic": 0.01219303437206605,
+      "rank_ic": 0.03561048184880537,
+      "icir": 0.15216978240065582,
+      "annual_return": 0.1979525281770047,
+      "turnover": 0.186768819379711,
+      "expression": "div(upper_shadow, mul(cs_scale(mul(ts_ref(dollar_volume, 7), intraday_range)), pow(add(ts_max(close, 4), vwap), pow(dollar_volume, ts_med(returns, 7)))))"
+    }
+  ],
+  "mean_pairwise_corr": 0.06666647597234471,
+  "median_pairwise_corr": 0.004962122604195644,
+  "unique_programs": 10,
+  "best_sharpe": 3.6295309270470595,
+  "mean_sharpe": 3.3070281935941113,
+  "wall_time_s": 40274.7172845,
+  "n_workers": 10
+}

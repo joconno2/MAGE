@@ -1,0 +1,10 @@
+{
+  "algorithm": "gp_baseline",
+  "pop_size": 200,
+  "generations": 100,
+  "n_runs": 10,
+  "tournament": 7,
+  "n_stocks": 467,
+  "n_days": 2516,
+  "eval": "20d_fwd_returns, normalized, topk50_drop5"
+}
