@@ -126,7 +126,31 @@ MAGE uses three mechanisms to prevent the archive from filling with variants of 
 
 ## Results
 
-S&P 500 universe (467 stocks with sufficient history), training period 2010-2019 (2,516 days), validation 2020 (253 days), test 2021-2022 (503 days). Population 200, 100 generations, 20x20 grid, 236 CPUs across 18 nodes. This split matches RiskMiner (2024) and is standard in the formulaic alpha literature. The 2021-2022 test period is one of the hardest recent windows (sharpest rate cycle in 40 years, tech selloff, inflation peak).
+S&P 500 universe (467 stocks with sufficient history), training period 2010-2019 (2,516 days), validation 2020 (253 days), test 2021-2022 (503 days). Population 200, 100 generations, 20x20 grid, 236 CPUs across 18 nodes.
+
+### Data Split Justification
+
+The train/val/test split follows established conventions in the formulaic alpha literature.
+
+**Training start (2010).** A 2010 start date is the de facto standard. AlphaGen (Yu et al., KDD 2023), AlphaForge (Shi et al., AAAI 2025), AlphaSAGE (Chen et al., 2025), RiskMiner (ICAIF 2024), AlphaEvolve (SIGMOD 2021), and AlphaEval (2025) all begin training at or near 2010. Starting earlier risks learning from a structurally different market regime (pre-2008 crisis). Starting later reduces training data below the ~2,000 day minimum needed for robust time-series operator estimation (60-day windows require at least 60 warm-up days per stock).
+
+**Validation year (2020).** A one-year validation gap between training and test is standard. AlphaEval (2025) establishes train 2010-2019 / val 2020 as the benchmark split for A-shares. AlphaAgent (2025) uses val 2020 on S&P 500. The validation year serves two purposes: hyperparameter selection (correlation gate threshold, population size) and early stopping.
+
+**Test period (2021-2022).** This is the same test window used by RiskMiner (ICAIF 2024): train 2010-2019, val 2020, test 2021-2022. AlphaForge's final rolling iteration (train 2010-2020, val 2021, test 2022) covers the same terminal year. Our test period is deliberately harder than the windows used by most published work. AlphaSAGE reports Sharpe 6.32 on S&P 500 testing 2018-2020, a period that includes the post-COVID rally. AlphaGen tests on 2020-2021. Our 2021-2022 window includes the sharpest Federal Reserve rate hiking cycle in 40 years (0% to 4.5%), peak CPI inflation at 9.1% (June 2022), and a 20% drawdown in the S&P 500. Positive Sharpe on this window is a stronger signal of genuine predictive content.
+
+**Forward returns (20-day).** Matches AlphaGen (KDD 2023), AlphaSAGE (2025), and Alpha-squared (2024). A 20-day horizon captures medium-term mean reversion and momentum effects without being dominated by microstructure noise (1-day) or macro trends (60+ day).
+
+**Long-short portfolio (top/bottom 20%).** Most Chinese equity papers use long-only top-50. We use long-short top/bottom 20% (quintile) to isolate alpha content from market direction. AlphaSAGE uses a similar long-short construction (top/bottom 10%) on S&P 500. Long-short is appropriate for a market-neutral alpha evaluation because it removes the confound of the equity risk premium.
+
+| Paper | Train | Val | Test | Market |
+|-------|-------|-----|------|--------|
+| RiskMiner (ICAIF 2024) | 2010-2019 | 2020 | 2021-2022 | CSI300/500 |
+| AlphaEval (2025) | 2010-2019 | 2020 | 2021-2024 | A-shares |
+| AlphaForge iter 5 (AAAI 2025) | 2010-2020 | 2021 | 2022 | CSI300/500 |
+| AlphaGen (KDD 2023) | 2009-2018 | 2019 | 2020-2021 | CSI300/500 |
+| AlphaSAGE S&P (2025) | 2010-2016 | 2017 | 2018-2020 | S&P 500 |
+| AlphaAgent (2025) | 2015-2019 | 2020 | 2021-2025 | S&P 500 |
+| **MAGE (ours)** | **2010-2019** | **2020** | **2021-2022** | **S&P 500** |
 
 ### Out-of-Sample Performance
 
