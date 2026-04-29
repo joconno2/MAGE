@@ -1,0 +1,82 @@
+[
+  {
+    "run": 1,
+    "train_sharpe": 3.5136050115401174,
+    "train_ic": 0.02023079841559526,
+    "train_icir": 0.26760019286336795,
+    "turnover": 0.20822117353424766,
+    "expression": "div(div(div(pow(upper_shadow, ts_med(turnover_ratio, 31)), div(high, greater(tur"
+  },
+  {
+    "run": 2,
+    "train_sharpe": 3.527252026671973,
+    "train_ic": 0.020094049811987844,
+    "train_icir": 0.23745576638138308,
+    "turnover": 0.224001369131159,
+    "expression": "div(div(div(mul(turnover_ratio, upper_shadow), ts_ref(cs_rank(close), 1)), intra"
+  },
+  {
+    "run": 3,
+    "train_sharpe": 3.6295309270470595,
+    "train_ic": 0.00990056670549664,
+    "train_icir": 0.2017949855198145,
+    "turnover": 0.21020895522007096,
+    "expression": "greater(cs_log(div(div(ts_min(log_return, 7), returns), div(cs_log(dollar_volume"
+  },
+  {
+    "run": 4,
+    "train_sharpe": 3.0210258082042167,
+    "train_ic": -0.0004714134712980174,
+    "train_icir": -0.007276722151081776,
+    "turnover": 0.1365880037648919,
+    "expression": "pow(pow(pow(sub(ts_skew(upper_shadow, 7), dollar_volume), div(sub(close, turnove"
+  },
+  {
+    "run": 5,
+    "train_sharpe": 3.546950674484493,
+    "train_ic": -0.014595969651349934,
+    "train_icir": -0.3467589742642182,
+    "turnover": 0.2289223323722499,
+    "expression": "div(div(div(upper_shadow, ts_ref(cs_rank(volume), 19)), ts_std(vwap, 4)), add(di"
+  },
+  {
+    "run": 6,
+    "train_sharpe": 3.368434696355943,
+    "train_ic": 0.023436707553431812,
+    "train_icir": 0.2947806330148773,
+    "turnover": 0.24753835564988622,
+    "expression": "mul(mul(upper_shadow, div(sub(turnover_ratio, ts_min(intraday_range, 28)), mul(i"
+  },
+  {
+    "run": 7,
+    "train_sharpe": 2.9608615895066515,
+    "train_ic": -0.012741790456897542,
+    "train_icir": -0.2245469448397773,
+    "turnover": 0.20615887870462574,
+    "expression": "pow(pow(sub(low, less(ts_decay_linear(dollar_volume, 25), close)), cs_abs(cs_sca"
+  },
+  {
+    "run": 8,
+    "train_sharpe": 2.9894795406850405,
+    "train_ic": -0.00040866373555506816,
+    "train_icir": -0.008108255437282563,
+    "turnover": 0.17397601196374432,
+    "expression": "sub(add(low, pow(turnover_ratio, mul(ts_sum(low, 4), upper_shadow))), vwap)"
+  },
+  {
+    "run": 9,
+    "train_sharpe": 3.328634014221617,
+    "train_ic": 0.0029322962837465163,
+    "train_icir": 0.051587785290714255,
+    "turnover": 0.238604541471282,
+    "expression": "div(upper_shadow, mul(add(greater(returns, lower_shadow), ts_mean(ts_product(upp"
+  },
+  {
+    "run": 10,
+    "train_sharpe": 3.184507647224,
+    "train_ic": 0.01219303437206605,
+    "train_icir": 0.15216978240065582,
+    "turnover": 0.186768819379711,
+    "expression": "div(upper_shadow, mul(cs_scale(mul(ts_ref(dollar_volume, 7), intraday_range)), p"
+  }
+]

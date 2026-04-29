@@ -1,0 +1,92 @@
+[
+  {
+    "run": 1,
+    "train_sharpe": 3.5136050115401174,
+    "val_sharpe": 3.554971397364819,
+    "val_ic": 0.028219107708197706,
+    "val_icir": 0.4731296857775316,
+    "turnover": 0.19618845415023758,
+    "expression": "div(div(div(pow(upper_shadow, ts_med(turnover_ratio, 31)), div(high, greater(tur"
+  },
+  {
+    "run": 2,
+    "train_sharpe": 3.527252026671973,
+    "val_sharpe": 2.374130718019827,
+    "val_ic": 0.03672196477936879,
+    "val_icir": 0.5268787104154671,
+    "turnover": 0.22667035299055535,
+    "expression": "div(div(div(mul(turnover_ratio, upper_shadow), ts_ref(cs_rank(close), 1)), intra"
+  },
+  {
+    "run": 3,
+    "train_sharpe": 3.6295309270470595,
+    "val_sharpe": 1.5259686525299738,
+    "val_ic": 0.00423622129258942,
+    "val_icir": 0.05485132080858921,
+    "turnover": 0.29614661093963834,
+    "expression": "greater(cs_log(div(div(ts_min(log_return, 7), returns), div(cs_log(dollar_volume"
+  },
+  {
+    "run": 4,
+    "train_sharpe": 3.0210258082042167,
+    "val_sharpe": 1.6185502066770359,
+    "val_ic": -0.02566502800813216,
+    "val_icir": -0.2888598873886746,
+    "turnover": 0.15108665343969008,
+    "expression": "pow(pow(pow(sub(ts_skew(upper_shadow, 7), dollar_volume), div(sub(close, turnove"
+  },
+  {
+    "run": 5,
+    "train_sharpe": 3.546950674484493,
+    "val_sharpe": 2.547856757095146,
+    "val_ic": 0.0031968895022435446,
+    "val_icir": 0.0647074723419084,
+    "turnover": 0.22272265213831471,
+    "expression": "div(div(div(upper_shadow, ts_ref(cs_rank(volume), 19)), ts_std(vwap, 4)), add(di"
+  },
+  {
+    "run": 6,
+    "train_sharpe": 3.368434696355943,
+    "val_sharpe": 2.038776313120004,
+    "val_ic": 0.024818115481418167,
+    "val_icir": 0.3186648352622275,
+    "turnover": 0.23651452638429799,
+    "expression": "mul(mul(upper_shadow, div(sub(turnover_ratio, ts_min(intraday_range, 28)), mul(i"
+  },
+  {
+    "run": 7,
+    "train_sharpe": 2.9608615895066515,
+    "val_sharpe": 1.2394361314559479,
+    "val_ic": 0.018592295147383787,
+    "val_icir": 0.26063276409411507,
+    "turnover": 0.20612661019979775,
+    "expression": "pow(pow(sub(low, less(ts_decay_linear(dollar_volume, 25), close)), cs_abs(cs_sca"
+  },
+  {
+    "run": 8,
+    "train_sharpe": 2.9894795406850405,
+    "val_sharpe": 0.7037461886931923,
+    "val_ic": -0.00025570656183824836,
+    "val_icir": -0.004230083523487618,
+    "turnover": 0.15482975329892715,
+    "expression": "sub(add(low, pow(turnover_ratio, mul(ts_sum(low, 4), upper_shadow))), vwap)"
+  },
+  {
+    "run": 9,
+    "train_sharpe": 3.328634014221617,
+    "val_sharpe": 2.434576182051187,
+    "val_ic": 0.0037912514916631592,
+    "val_icir": 0.08723896082146611,
+    "turnover": 0.25611640340432584,
+    "expression": "div(upper_shadow, mul(add(greater(returns, lower_shadow), ts_mean(ts_product(upp"
+  },
+  {
+    "run": 10,
+    "train_sharpe": 3.184507647224,
+    "val_sharpe": 2.7998784414850175,
+    "val_ic": 0.027193481443985833,
+    "val_icir": 0.3508912577146053,
+    "turnover": 0.1828493566427492,
+    "expression": "div(upper_shadow, mul(cs_scale(mul(ts_ref(dollar_volume, 7), intraday_range)), p"
+  }
+]
