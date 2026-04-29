@@ -130,18 +130,28 @@ S&P 500 universe (467 stocks with sufficient history), training period 2010-2019
 
 ### Out-of-Sample Performance
 
-All 20 top alphas maintain positive Sharpe and positive IC on the held-out 2021-2022 test set.
+All 20 top alphas maintain positive Sharpe and positive IC on the held-out 2021-2022 test set. GP baseline evaluated on the same test set for direct comparison.
+
+| Metric | MAGE (top 20) | GP Baseline (10 runs) |
+|--------|--------------|----------------------|
+| **Test Sharpe (best)** | **2.53** | 2.51 |
+| **Test Sharpe (mean)** | **1.84** | 1.72 |
+| Test IC (mean) | **0.024** | 0.012 |
+| Test ICIR (mean) | **0.31** | -- |
+| Positive on test | **20/20** | 10/10 |
+| Pairwise correlation | 0.102 | 0.067 |
+| Strategies produced | **221 (grid-indexed)** | 10 (unstructured) |
 
 | Metric | Train (2010-2019) | Val (2020) | Test (2021-2022) |
 |--------|-------------------|------------|------------------|
-| Best individual Sharpe | 2.65 | 1.83 | **2.52** |
-| Combined top-5 Sharpe | 2.77 | 1.24 | **2.07** |
-| Combined top-10 Sharpe | 2.70 | 1.20 | **1.98** |
-| Combined top-20 Sharpe | 2.85 | 1.26 | **2.13** |
-| Mean IC (top 20) | 0.036 | 0.042 | **0.024** |
-| Mean ICIR (top 20) | 0.45 | 0.43 | **0.30** |
-| Pairwise corr (top 20) | 0.102 | 0.130 | 0.159 |
-| Top 20 positive on test | - | - | **20/20** |
+| MAGE best Sharpe | 2.66 | 2.09 | **2.53** |
+| MAGE mean Sharpe (top 20) | 2.42 | 1.48 | **1.84** |
+| MAGE mean IC (top 20) | 0.036 | 0.042 | **0.024** |
+| MAGE mean ICIR (top 20) | 0.45 | 0.43 | **0.31** |
+| GP best Sharpe | 3.63 | 3.56 | **2.51** |
+| GP mean Sharpe (10 runs) | 3.31 | 2.08 | **1.72** |
+
+GP achieves higher training Sharpe (3.31 vs 2.42 mean) because each run spends all compute maximizing a single solution. MAGE trades peak training performance for diversity and achieves better test generalization: MAGE's test-to-train ratio is 0.76 vs GP's 0.52. The correlation gate acts as a regularizer.
 
 ### Multi-Seed Robustness
 
@@ -200,22 +210,25 @@ Note: the 0.75, 0.80, 0.85, 0.95 runs did not fully converge (30-85 generations 
 
 Without the correlation gate, the archive fills with correlated variants. Coverage drops from 221 to 135 despite no gate restricting insertion. The gate forces the search to explore new behavioral regions instead of refining one signal family.
 
-### GP Baseline (10 runs, 6 seeds)
+### GP Baseline (10 runs, seed 42)
 
-| Seed | Best Sharpe | Pairwise Corr |
-|------|-------------|---------------|
-| 1 | 3.48 | 0.024 |
-| 2 | 3.45 | 0.012 |
-| 3 | 3.31 | 0.040 |
-| 4 | 3.26 | 0.162 |
-| 5 | 3.54 | 0.030 |
-| 42 | 3.14 | 0.094 |
+| Run | Train Sharpe | Val Sharpe | Test Sharpe | Test IC |
+|-----|-------------|------------|-------------|---------|
+| 1 | 3.51 | 2.88 | 1.84 | 0.014 |
+| 2 | 3.53 | 3.56 | 2.51 | 0.021 |
+| 3 | 3.63 | 2.43 | 1.65 | 0.009 |
+| 4 | 3.02 | 1.22 | 1.47 | 0.018 |
+| 5 | 3.55 | 2.12 | 1.77 | 0.008 |
+| 6 | 3.26 | 2.14 | 1.93 | 0.013 |
+| 7 | 2.99 | 1.51 | 1.11 | 0.006 |
+| 8 | 3.40 | 1.57 | 1.56 | 0.011 |
+| 9 | 3.04 | 1.41 | 1.33 | 0.011 |
+| 10 | 3.14 | 2.00 | 2.07 | 0.010 |
+| **Mean** | **3.31** | **2.08** | **1.72** | **0.012** |
 
-**Train:** GP Sharpe 2.895 +/- 0.159 (range 2.629-3.140) across 10 runs (seed 42). GP consistently achieves higher individual Sharpe than MAGE (2.65) because each run spends all compute maximizing a single solution. GP also maintains low pairwise correlation (0.01-0.16) across all seeds with the expanded feature set. With the original 6-feature set (open, high, low, close, volume, vwap only), GP collapsed to one factor family (pairwise corr 0.494, 8/10 runs converging to `div(vwap, close)`).
+Pairwise correlation across 10 GP runs: **0.067**. With the expanded 15-feature set, GP does not collapse to a single factor family. With the original 6-feature set (open, high, low, close, volume, vwap only), GP collapsed to pairwise corr 0.494, with 8/10 runs converging to `div(vwap, close)`.
 
-**Test:** GP baseline test evaluation in progress (re-running with tree object saving for held-out evaluation).
-
-MAGE's contribution over GP is the behavioral grid. GP gives you 10 alphas with no control over their turnover or market correlation profiles. MAGE gives you 221 alphas indexed by deployment-relevant behavioral axes. A portfolio manager can select alphas matching specific turnover budgets and market exposure targets. Additionally, the correlation gate acts as a regularizer that improves test-set generalization.
+**MAGE's contribution over GP is the behavioral grid.** GP gives you 10 alphas with no control over their turnover or market correlation profiles. MAGE gives you 221 alphas indexed by deployment-relevant behavioral axes. A portfolio manager can select alphas matching specific turnover budgets and market exposure targets. The correlation gate also acts as a regularizer: MAGE's test-to-train Sharpe ratio is 0.76 vs GP's 0.52.
 
 ### Feature Engineering Impact
 
@@ -226,32 +239,32 @@ MAGE's contribution over GP is the behavioral grid. GP gives you 10 alphas with 
 
 The expanded feature set is the primary driver of diversity. The correlation gate acts as regularization (improves test generalization), not as a collapse prevention mechanism.
 
-### Top 20 Alphas (sorted by test Sharpe)
+### Top 20 Alphas (sorted by test Sharpe, final evaluation)
 
-| Rank | Train | Test | IC | Turnover | Expression (truncated) |
-|------|-------|------|------|----------|----------------------|
-| 1 | 2.47 | 2.52 | 0.032 | 0.110 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
-| 2 | 2.57 | 2.23 | 0.023 | 0.142 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
-| 3 | 2.32 | 2.20 | 0.022 | 0.117 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
-| 4 | 2.56 | 2.12 | 0.026 | 0.107 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
-| 5 | 2.35 | 2.12 | 0.032 | 0.118 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
-| 6 | 2.50 | 2.05 | 0.037 | 0.086 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
-| 7 | 2.65 | 2.05 | 0.036 | 0.100 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 32))), close)` |
-| 8 | 2.30 | 2.04 | 0.028 | 0.180 | `div(upper_shadow, mul(cs_rank(ts_min(dollar_volume, 40)), ...))` |
-| 9 | 2.51 | 2.02 | 0.013 | 0.189 | `div(mul(upper_shadow, div(greater(turnover_ratio, ...))), ...)` |
-| 10 | 2.37 | 1.94 | 0.027 | 0.199 | `cs_rank(div(mul(upper_shadow, pow(turnover_ratio, ...)), ...))` |
-| 11 | 2.51 | 1.93 | 0.031 | 0.128 | `div(pow(upper_shadow, cs_rank(ts_min(volume, 35))), open)` |
-| 12 | 2.53 | 1.88 | 0.030 | 0.126 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
-| 13 | 2.26 | 1.88 | 0.020 | 0.127 | `div(pow(upper_shadow, cs_rank(ts_min(lower_shadow, 29))), close)` |
-| 14 | 2.40 | 1.86 | 0.021 | 0.214 | `div(mul(upper_shadow, div(greater(dollar_volume, ...))), ...)` |
-| 15 | 2.26 | 1.78 | 0.020 | 0.179 | `div(div(upper_shadow, cs_rank(close)), dollar_volume)` |
-| 16 | 2.38 | 1.57 | 0.010 | 0.247 | `div(mul(upper_shadow, div(greater(turnover_ratio, ...))), ...)` |
-| 17 | 2.48 | 1.48 | 0.010 | 0.107 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
-| 18 | 2.28 | 1.45 | 0.018 | 0.103 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 34))), ...)` |
-| 19 | 2.41 | 1.24 | 0.022 | 0.096 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 37))), ...)` |
-| 20 | 2.35 | 1.06 | 0.021 | 0.108 | `div(less(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 28))), ...)` |
+| Rank | Train | Test | IC | ICIR | Turnover | Expression (truncated) |
+|------|-------|------|------|------|----------|----------------------|
+| 1 | 2.65 | 2.06 | 0.036 | 0.388 | 0.101 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 32))), close)` |
+| 2 | 2.57 | 2.26 | 0.023 | 0.282 | 0.142 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 3 | 2.56 | 2.06 | 0.023 | 0.293 | 0.110 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 4 | 2.53 | 1.86 | 0.028 | 0.395 | 0.126 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 5 | 2.51 | 1.93 | 0.031 | 0.500 | 0.128 | `div(pow(upper_shadow, cs_rank(ts_min(volume, 35))), open)` |
+| 6 | 2.51 | 1.70 | 0.013 | 0.182 | 0.189 | `div(mul(upper_shadow, div(greater(turnover_ratio, ...))), ...)` |
+| 7 | 2.50 | 2.06 | 0.037 | 0.375 | 0.086 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 8 | 2.48 | 1.32 | 0.010 | 0.206 | 0.107 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 9 | 2.47 | 2.53 | 0.032 | 0.430 | 0.110 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 10 | 2.41 | 1.17 | 0.022 | 0.262 | 0.096 | `div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 37))), ...)` |
+| 11 | 2.40 | 1.78 | 0.021 | 0.254 | 0.214 | `div(mul(upper_shadow, div(greater(dollar_volume, ...))), ...)` |
+| 12 | 2.38 | 1.57 | 0.010 | 0.154 | 0.247 | `div(mul(upper_shadow, div(greater(turnover_ratio, ...))), ...)` |
+| 13 | 2.37 | 1.91 | 0.027 | 0.373 | 0.199 | `cs_rank(div(mul(upper_shadow, pow(turnover_ratio, ...)), ...))` |
+| 14 | 2.35 | 2.07 | 0.021 | 0.328 | 0.108 | `div(less(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 28))), ...)` |
+| 15 | 2.35 | 1.07 | 0.021 | 0.257 | 0.108 | `div(less(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 28))), ...)` |
+| 16 | 2.32 | 2.16 | 0.022 | 0.318 | 0.117 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 29))), ...)` |
+| 17 | 2.30 | 2.04 | 0.028 | 0.339 | 0.180 | `div(upper_shadow, mul(cs_rank(ts_min(dollar_volume, 40)), ...))` |
+| 18 | 2.28 | 1.45 | 0.018 | 0.260 | 0.103 | `div(div(pow(upper_shadow, cs_rank(ts_min(dollar_volume, 34))), ...)` |
+| 19 | 2.26 | 1.78 | 0.020 | 0.230 | 0.179 | `div(div(upper_shadow, cs_rank(close)), dollar_volume)` |
+| 20 | 2.26 | 2.04 | 0.020 | 0.243 | 0.127 | `div(pow(upper_shadow, cs_rank(ts_min(lower_shadow, 29))), close)` |
 
-All 20 positive on test. All 20 positive IC. Test Sharpe distribution: min=1.058, median=1.936, max=2.523, mean=1.871.
+All 20 positive on test. All 20 positive IC. Test Sharpe: min=1.07, median=1.93, max=2.53, mean=1.84. Mean test IC=0.024, mean ICIR=0.31.
 
 The dominant signal family combines selling pressure (`upper_shadow`), liquidity ranking (`cs_rank(ts_min(dollar_volume, d))`), and price normalization (`div(..., close/open)`). Stocks with high selling pressure relative to their liquidity rank tend to revert. The diversity mechanisms ensure the archive also contains structurally different alphas using `turnover_ratio`, `body`, `ts_corr`, and other features in lower cells.
 
