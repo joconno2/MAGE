@@ -528,7 +528,7 @@ Root operators found: cs_abs, cs_log, cs_rank, cs_sign, div, greater, less, mul,
 ```bibtex
 @article{oconnor2026mage,
   title     = {{MAGE}: {MAP}-Elites for Alpha Generation},
-  author    = {O'Connor, Jim and Mullinax, Mitch and Fernandez, Melanie and Parker, Gary},
+  author    = {O'Connor, Jim and Mullinax, Mitch and Fernandez, Melanie},
   year      = {2026},
 }
 ```
